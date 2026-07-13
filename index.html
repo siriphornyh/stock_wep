@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ระบบ Stock Management</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loading-msg" style="font-size:14px;color:#555">กำลังโหลด...</div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">🗂️</div>
+    <div class="login-title">ระบบจัดการ Stock</div>
+    <div class="login-sub">กรุณาเข้าสู่ระบบเพื่อใช้งาน</div>
+    <div class="fr">
+      <label>ชื่อแอดมิน</label>
+      <select id="login-admin">
+        <option value="">-- กำลังโหลดรายชื่อ... --</option>
+      </select>
+    </div>
+    <div class="fr">
+      <label>รหัสผ่าน</label>
+      <input type="password" id="login-pw" placeholder="กรอกรหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-err" id="login-err"></div>
+    <button class="btn btn-blue" style="width:100%;margin-top:6px;padding:12px" onclick="doLogin()">🔐 เข้าสู่ระบบ</button>
+    <div class="login-spinner" id="login-spinner">⏳ กำลังตรวจสอบ...</div>
+  </div>
+</div>
+
+<!-- HOME -->
+<div class="home" id="home-screen">
+  <div style="position:absolute;top:16px;right:16px;display:flex;align-items:center;gap:8px">
+    <span id="home-admin-name" style="font-size:13px;color:#555;font-weight:bold"></span>
+    <button class="btn btn-gray btn-sm" onclick="doLogout()">🚪 ออกจากระบบ</button>
+  </div>
+  <div class="home-title">🗂️ ระบบจัดการ Stock</div>
+  <div class="home-sub">เลือกระบบที่ต้องการใช้งาน</div>
+  <div class="home-grid">
+    <div class="home-card" style="border-color:#0070c0" onclick="openApp('office')">
+      <div class="icon">🏢</div>
+      <div class="name" style="color:#0070c0">Office Stock</div>
+      <div class="desc">อุปกรณ์สำนักงาน<br>และเครื่องเขียน</div>
+    </div>
+    <div class="home-card" style="border-color:#16a34a" onclick="openApp('medicine')">
+      <div class="icon">💊</div>
+      <div class="name" style="color:#16a34a">Medicine Stock</div>
+      <div class="desc">ยาและเวชภัณฑ์<br>พร้อมวันหมดอายุ</div>
+    </div>
+    <div class="home-card" style="border-color:#ea580c" onclick="openApp('machine')">
+      <div class="icon">⚙️</div>
+      <div class="name" style="color:#ea580c">Machine Stock</div>
+      <div class="desc">อะไหล่เครื่องจักร<br>และงานซ่อมบำรุง</div>
+    </div>
+    <div class="home-card" style="border-color:#7c3aed" onclick="openApp('uniform')">
+      <div class="icon">👕</div>
+      <div class="name" style="color:#7c3aed">Uniform Stock</div>
+      <div class="desc">เสื้อผ้าพนักงาน<br>แยกไซส์และสถานะ</div>
+    </div>
+  </div>
+  <div style="margin-top:20px">
+    <button class="btn btn-gray btn-sm" onclick="openSettings()">⚙️ ตั้งค่าระบบ</button>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div class="app" id="app-shell">
+  <div class="header" id="app-header">
+    <span class="back" onclick="goHome()">◀</span>
+    <span class="htitle" id="app-title"></span>
+    <div class="hright">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+        <span class="htime" id="app-time"></span>
+        <span id="save-indicator" style="font-size:10px;opacity:.8;color:#86efac">🔗 เชื่อมต่อ Sheets</span>
+      </div>
+      <button class="btn-save" id="btn-manual-save" onclick="manualSave()" title="บันทึกข้อมูล / Refresh">
+        💾 Save
+      </button>
+    </div>
+  </div>
+  <div class="tabs" id="app-tabs"></div>
+  <div class="content" id="app-content">
+    <div style="text-align:center;padding:40px;color:#888">⏳ กำลังโหลดข้อมูล...</div>
+  </div>
+</div>
+
+<!-- MODAL: เพิ่ม/แก้ไขสินค้า -->
+<div class="modal-bg" id="item-modal">
+  <div class="modal">
+    <h3 id="imod-title">เพิ่มรายการ</h3>
+    <input type="hidden" id="imod-sys">
+    <input type="hidden" id="imod-code-orig">
+    <input type="hidden" id="imod-stocktype">
+    <div class="fr"><label>รหัสสินค้า</label><input id="imod-code" placeholder="เช่น ITM001"></div>
+    <div class="fr"><label>ชื่อ</label><input id="imod-name" placeholder="ชื่อรายการ"></div>
+    <div class="fr">
+      <label>หมวดหมู่ (Category)</label>
+      <select id="imod-cat">
+        <option value="">-- กำลังโหลด... --</option>
+      </select>
+    </div>
+    <div class="fr">
+      <label>หน่วยนับ (Unit)</label>
+      <select id="imod-unit">
+        <option value="">-- กำลังโหลด... --</option>
+      </select>
+    </div>
+    <!-- extra1: Part No. (machine) / วันหมดอายุ (medicine) -->
+    <div class="fr" id="imod-extra1-wrap"><label id="imod-extra1-label">Extra 1</label><input id="imod-extra1" placeholder=""></div>
+    <!-- extra2: ไซส์ (uniform only) -->
+    <div class="fr" id="imod-extra2-wrap" style="display:none"><label>ไซส์ (Uniform)</label><input id="imod-extra2" placeholder="เช่น M, L, XL"></div>
+    <!-- aliases: ชื่อเรียกอื่นๆ ทุกหมวด -->
+    <div class="fr" id="imod-aliases-wrap">
+      <label>ชื่อเรียกอื่นๆ / Aliases <span style="font-weight:normal;color:#888;font-size:11px">(คั่นด้วยจุลภาค เพื่อค้นหาด้วยภาษาช่าง)</span></label>
+      <input id="imod-aliases" placeholder="เช่น สายพาน,v-belt,rubber belt">
+    </div>
+    <div class="fr"><label>Stock ขั้นต่ำ</label><input type="number" id="imod-min" value="5" min="0"></div>
+    <div class="fr">
+      <label>รูปภาพสินค้า</label>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+        <div id="imod-img-wrap" style="position:relative;display:inline-block"><div class="img-ph">📦</div></div>
+        <div>
+          <label class="btn btn-gray btn-sm" style="cursor:pointer;display:inline-block;margin-bottom:6px">
+            📎 เลือกรูป
+            <input type="file" accept="image/*" style="display:none" onchange="previewItemImg(event)" id="imod-file-input">
+          </label>
+          <div style="font-size:11px;color:#888">รูปจะถูกอัปโหลดไปยัง Google Drive</div>
+        </div>
+      </div>
+      <input type="hidden" id="imod-photo">
+      <input type="hidden" id="imod-photo-base64">
+      <input type="hidden" id="imod-photo-mime">
+      <input type="hidden" id="imod-photo-filename">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-gray" onclick="closeModal('item-modal')">ยกเลิก</button>
+      <button class="btn btn-green" onclick="saveItemModal()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: พรีวิวสินค้า Real-Time + UNVERIFIED Badge -->
+<div class="modal-bg" id="preview-modal">
+  <div class="modal" style="max-width:420px">
+    <div id="preview-body"></div>
+    <div style="text-align:right;margin-top:16px">
+      <button class="btn btn-gray" onclick="closeModal('preview-modal')">✖ ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Settings -->
+<div class="modal-bg" id="settings-modal">
+  <div class="modal" style="max-width:600px">
+    <h3>⚙️ ตั้งค่าระบบ</h3>
+    <div class="tabs" style="margin:-10px -22px 16px;border-bottom:2px solid #e5e7eb">
+      <button class="tab active" id="stab-admin" onclick="switchSettingsTab('admin')" style="color:#0070c0">👤 แอดมิน</button>
+      <button class="tab" id="stab-emp" onclick="switchSettingsTab('emp')" style="color:#0070c0">👥 พนักงาน</button>
+      <button class="tab" id="stab-dept" onclick="switchSettingsTab('dept')" style="color:#0070c0">🏢 แผนก</button>
+      <button class="tab" id="stab-pw" onclick="switchSettingsTab('pw')" style="color:#0070c0">🔑 รหัสผ่าน</button>
+      <button class="tab" id="stab-logs" onclick="switchSettingsTab('logs')" style="color:#0070c0">📋 Logs</button>
+    </div>
+    <div id="settings-content"></div>
+    <div style="text-align:right;margin-top:14px">
+      <button class="btn btn-gray btn-sm" onclick="closeModal('settings-modal')">✖ ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- SOFT-WARNING MODAL -->
+<div id="soft-warn-modal">
+  <div class="soft-warn-box">
+    <div class="sw-icon">⚠️</div>
+    <div class="sw-msg">
+      <span class="sw-hl">ยอดคงเหลือก่อนเบิกไม่เพียงพอ (ยอดจะติดลบ)</span><br><br>
+      ยืนยันว่ามีสินค้าจริงในมือ และต้องการบันทึกใช่หรือไม่?<br>
+      <span id="sw-detail" style="font-size:12px;color:#888;margin-top:6px;display:block"></span>
+    </div>
+    <div class="sw-btn-row">
+      <button class="btn btn-gray" onclick="closeSoftWarn()">✖ ยกเลิก — แก้ไขจำนวน</button>
+      <button class="btn btn-orange" onclick="confirmSoftWarn()">✅ ยืนยันซ้ำ — บันทึกต่อ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" style="display:none;position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:bold;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.25)"></div>
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="supabase-api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
