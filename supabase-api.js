@@ -83,10 +83,10 @@ var SUPA_API = (function () {
   //   เพื่อให้ dropdown โตขึ้นเรื่อยๆ ตามข้อมูลจริงโดยไม่ต้องมีตารางแยก)
   // ============================================================
   var DROPDOWN_DEFAULTS = {
-    office: { categories: ["Stationery", "Paper", "Toner/Ink", "Electronics", "Cleaning", "General"], units: ["Piece", "Ream", "Box", "Unit", "Pack", "Bottle", "Sheet", "Roll"] },
-    machine: { categories: ["สายพาน/โซ่", "ตลับลูกปืน", "น้ำมัน", "อุปกรณ์ไฟฟ้า", "เครื่องมือ", "สารหล่อลื่น", "อะไหล่ทั่วไป"], units: ["เส้น", "ชิ้น", "ลิตร", "ชุด", "อัน", "กระป๋อง", "กิโลกรัม"] },
-    medicine: { categories: ["ยาแก้ปวด", "ยาสามัญประจำบ้าน", "เวชภัณฑ์", "อุปกรณ์ปฐมพยาบาล", "วัคซีน", "วิตามิน"], units: ["เม็ด", "กล่อง", "ชุด", "ชิ้น", "ขวด", "ซอง", "แผ่น", "ขีด"] },
-    uniform: { categories: ["เสื้อ", "กางเกง", "รองเท้า", "หมวก/ถุงมือ", "อุปกรณ์นิรภัย", "เครื่องแบบ"], units: ["ตัว", "คู่", "ใบ", "ชิ้น", "ชุด", "อัน"] }
+    office: { categories: ["Stationery", "Paper", "Toner/Ink", "Electronics", "MISC", "General"], units: ["pcs.", "pack", "roll", "set", "dozen", "ream", "Sheet", "bottle", "book", "box"] },
+    machine: { categories: ["Lubricants", "Belts", "Machine Parts", "Needles", "Blades", "Electric/Air", "Tools"], units: ["pack", "unit", "set", "line", "belt", "gal", "tube", "pcs."] },
+    medicine: { categories: ["Anti-Inflam", "Muscle Relax", "Herbal", "Topical", "Allergy", "Vitamin", "First Aid", "Pain Relief", "Diarrhea", "Covid-Supplies"], units: ["pcs.", "tablet", "blister pack", "sachet", "tube", "bottle", "jar", "pair", "box", "set"] },
+    uniform: { categories: ["Polo", "Face Mask", "Cap", "Pants", "Shirt", "shoe"], units: ["pcs.", "set", "pair"] }
   };
 
   async function getDropdownOptions(stockType) {
