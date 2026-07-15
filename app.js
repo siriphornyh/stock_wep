@@ -168,7 +168,7 @@ function openApp(sys) {
   document.getElementById('app-title').textContent = cfg.title;
   document.getElementById('app-time').textContent = 'อัปเดต: ' + formatDateTH(new Date());
   renderAppTabs(sys, cfg);
-  switchTab(sys, 'dashboard');
+  switchTab(sys, sys === 'reports' ? 'deduction' : 'dashboard');
 }
 
 function appConfig(sys) {
@@ -176,14 +176,21 @@ function appConfig(sys) {
     office:   { title: '🏢 Office Stock',   gradient: 'linear-gradient(135deg,#0070c0,#004f8c)', color: '#0070c0' },
     medicine: { title: '💊 Medicine Stock', gradient: 'linear-gradient(135deg,#16a34a,#14532d)', color: '#16a34a' },
     machine:  { title: '⚙️ Machine Stock',  gradient: 'linear-gradient(135deg,#ea580c,#9a3412)', color: '#ea580c' },
-    uniform:  { title: '👕 Uniform Stock',  gradient: 'linear-gradient(135deg,#7c3aed,#4c1d95)', color: '#7c3aed' }
+    uniform:  { title: '👕 Uniform Stock',  gradient: 'linear-gradient(135deg,#7c3aed,#4c1d95)', color: '#7c3aed' },
+    reports:  { title: '📊 Reports',        gradient: 'linear-gradient(135deg,#b45309,#92400e)', color: '#b45309' }
   };
   return c[sys];
 }
 
 function renderAppTabs(sys, cfg) {
-  var tabs = ['dashboard', 'items', 'receive', 'issue', 'balance'];
-  var labels = { dashboard: '🏠 Dashboard', items: '📦 รายการ', receive: '📥 รับเข้า', issue: '📤 เบิกจ่าย', balance: '📊 ยอดคงเหลือ' };
+  var tabs, labels;
+  if (sys === 'reports') {
+    tabs = ['deduction', 'summary'];
+    labels = { deduction: '💰 Summary', summary: '📈 Dashboard' };
+  } else {
+    tabs = ['dashboard', 'items', 'receive', 'issue', 'balance'];
+    labels = { dashboard: '🏠 Dashboard', items: '📦 รายการ', receive: '📥 รับเข้า', issue: '📤 เบิกจ่าย', balance: '📊 ยอดคงเหลือ' };
+  }
   document.getElementById('app-tabs').innerHTML = tabs.map(function(t) {
     return '<button class="tab" id="tab-btn-' + t + '" style="color:' + cfg.color + '" onclick="switchTab(\'' + sys + '\',\'' + t + '\')">' + labels[t] + '</button>';
   }).join('');
@@ -195,7 +202,7 @@ function switchTab(sys, tab) {
   var btn = document.getElementById('tab-btn-' + tab);
   if (btn) btn.classList.add('active');
   document.getElementById('app-time').textContent = 'อัปเดต: ' + formatDateTH(new Date());
-  var fn = { dashboard: renderDashboard, items: renderItems, receive: renderReceive, issue: renderIssue, balance: renderBalance };
+  var fn = { dashboard: renderDashboard, items: renderItems, receive: renderReceive, issue: renderIssue, balance: renderBalance, deduction: renderDeductionReport };
   if (fn[tab]) fn[tab](sys);
 }
 
@@ -1489,3 +1496,186 @@ function renderSettingsLogs() {
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ============================================================
+//  REPORTS — สรุปค่าใช้จ่ายพนักงาน
+// ============================================================
+var _deductData = []; // cache ข้อมูลดิบทั้งหมด
+
+function renderDeductionReport() {
+  var col = '#b45309';
+  document.getElementById('app-content').innerHTML =
+    // Control Panel
+    '<div class="card">' +
+      // Row 1: ค้นหาทั่วไป + วันที่ + Export
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
+        '<div style="flex:1;min-width:160px"><label>🔍 ค้นหา (ชื่อ/รหัส/สินค้า)</label><input type="text" id="rpt-q" placeholder="พิมพ์เพื่อค้นหา..." oninput="applyDeductFilter()"></div>' +
+        '<div><label>วันที่เริ่ม</label><input type="date" id="rpt-df" onchange="loadDeductData()"></div>' +
+        '<div><label>วันที่สิ้นสุด</label><input type="date" id="rpt-dt" onchange="loadDeductData()"></div>' +
+        '<button class="btn btn-green btn-sm" style="align-self:flex-end" onclick="exportDeductExcel()">📥 Export Excel</button>' +
+      '</div>' +
+      // Row 2: ค้นหาพนักงาน Autocomplete
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
+        '<div style="flex:1;min-width:160px"><label>👤 ชื่อพนักงาน</label>' +
+          '<div class="sw"><input type="text" id="rpt-emp-search" placeholder="พิมพ์ชื่อ..." autocomplete="off" oninput="filterRptEmpDD()">' +
+          '<input type="hidden" id="rpt-emp-val"><div class="ddl" id="rpt-emp-list"></div></div></div>' +
+        '<div style="width:130px"><label>รหัสพนักงาน</label><input type="text" id="rpt-emp-code" readonly class="af-box"></div>' +
+        '<div style="width:160px"><label>แผนก (ของพนักงาน)</label><input type="text" id="rpt-emp-dept" readonly class="af-box"></div>' +
+      '</div>' +
+      // Row 3: Filter แผนก + หมวดหมู่
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
+        '<div style="width:200px"><label>🏢 แผนก (Filter ทั้งแผนก)</label>' +
+          '<select id="rpt-dept" onchange="applyDeductFilter()"><option value="">— รวมทุกแผนก —</option></select></div>' +
+        '<div style="width:200px"><label>📦 หมวดหมู่สินค้า</label>' +
+          '<select id="rpt-stock" onchange="applyDeductFilter()">' +
+            '<option value="">— ทุกหมวด —</option>' +
+            '<option value="office">Office</option>' +
+            '<option value="machine">Machine</option>' +
+            '<option value="uniform">Uniform</option>' +
+          '</select></div>' +
+      '</div>' +
+      // Row 4: Reset
+      '<button class="btn btn-gray btn-sm" onclick="resetDeductFilter()">✖ ล้างค่าทั้งหมด</button>' +
+    '</div>' +
+    // ตาราง (padding-bottom เผื่อ sticky footer)
+    '<div class="card" style="padding-bottom:60px">' +
+      '<div style="overflow-x:auto"><table>' +
+        '<thead><tr style="background:' + col + ';color:#fff">' +
+          '<th>วันที่</th><th>แผนก</th><th>รหัสพนักงาน</th><th>ชื่อพนักงาน</th>' +
+          '<th>รหัสสินค้า</th><th>รายการ</th><th>Part No.</th>' +
+          '<th>ราคา/หน่วย</th><th>จำนวน</th><th>ยอดรวม</th><th>หมายเหตุ</th>' +
+        '</tr></thead>' +
+        '<tbody id="rpt-tbody"><tr><td colspan="11" style="text-align:center;color:#888;padding:30px">⏳ กำลังโหลด...</td></tr></tbody>' +
+      '</table></div>' +
+    '</div>' +
+    // Sticky Total Footer
+    '<div id="rpt-footer" style="position:fixed;bottom:0;left:0;right:0;background:#eacc25;color:#1e293b;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:15px;box-shadow:0 -2px 10px rgba(0,0,0,.15);z-index:500">' +
+      '<span>💰 ยอดรวมเงินทั้งหมด (ที่กรองแล้ว)</span>' +
+      '<span id="rpt-total">0.00 บาท</span>' +
+    '</div>';
+
+  // โหลด employees สำหรับ autocomplete
+  var emps = _cache['employees'];
+  if (emps) { _initRptEmpSearch(emps); _initRptDeptDD(emps); }
+  else gas('getEmployees', [], function(res) {
+    if (res.ok) { _cache['employees'] = res.data; _initRptEmpSearch(res.data); _initRptDeptDD(res.data); }
+  });
+
+  loadDeductData();
+}
+
+function _initRptEmpSearch(emps) {
+  window._rptEmps = emps;
+}
+
+function filterRptEmpDD() {
+  var q = (document.getElementById('rpt-emp-search').value || '').toLowerCase();
+  var emps = window._rptEmps || [];
+  var lst = document.getElementById('rpt-emp-list');
+  var filtered = q ? emps.filter(function(e){ return (e.name||'').toLowerCase().includes(q)||(e.code||'').toLowerCase().includes(q); }) : [];
+  lst.innerHTML = filtered.map(function(e){
+    return '<div class="ddi" onmousedown="selectRptEmp(\'' + e.code.replace(/'/g,"\\'") + '\',\'' + e.name.replace(/'/g,"\\'") + '\',\'' + (e.department||'').replace(/'/g,"\\'") + '\')">' + e.name + ' (' + e.code + ')</div>';
+  }).join('');
+  lst.style.display = filtered.length ? 'block' : 'none';
+}
+
+function selectRptEmp(code, name, dept) {
+  document.getElementById('rpt-emp-search').value = name;
+  document.getElementById('rpt-emp-val').value = code;
+  document.getElementById('rpt-emp-code').value = code;
+  document.getElementById('rpt-emp-dept').value = dept;
+  document.getElementById('rpt-emp-list').style.display = 'none';
+  applyDeductFilter();
+}
+
+function _initRptDeptDD(emps) {
+  var depts = [];
+  emps.forEach(function(e){ if (e.department && depts.indexOf(e.department) === -1) depts.push(e.department); });
+  var sel = document.getElementById('rpt-dept');
+  if (!sel) return;
+  depts.forEach(function(d){ sel.innerHTML += '<option value="' + d + '">' + d + '</option>'; });
+}
+
+function loadDeductData() {
+  var df = (document.getElementById('rpt-df')||{}).value || '';
+  var dt = (document.getElementById('rpt-dt')||{}).value || '';
+  gas('getDeductionReport', [df, dt], function(res) {
+    _deductData = res.ok ? res.data : [];
+    applyDeductFilter();
+  });
+}
+
+function applyDeductFilter() {
+  var q       = ((document.getElementById('rpt-q')||{}).value||'').toLowerCase();
+  var empCode = ((document.getElementById('rpt-emp-val')||{}).value||'');
+  var dept    = ((document.getElementById('rpt-dept')||{}).value||'');
+  var stock   = ((document.getElementById('rpt-stock')||{}).value||'');
+
+  var filtered = _deductData.filter(function(r) {
+    var matchQ    = !q    || (r.empName||'').toLowerCase().includes(q) || (r.empCode||'').toLowerCase().includes(q) || (r.itemName||'').toLowerCase().includes(q) || (r.itemCode||'').toLowerCase().includes(q);
+    var matchEmp  = !empCode || r.empCode === empCode;
+    var matchDept = !dept  || r.department === dept;
+    var matchSt   = !stock || r.stockType === stock;
+    return matchQ && matchEmp && matchDept && matchSt;
+  });
+
+  var total = 0;
+  var rows = filtered.map(function(r, idx) {
+    total += r.totalAmount;
+    return '<tr style="background:' + (idx%2===0?'#fafafa':'#fff') + '">' +
+      '<td style="white-space:nowrap">' + toDisplayDate(r.date) + '</td>' +
+      '<td>' + (r.department||'-') + '</td>' +
+      '<td style="text-align:center;font-size:12px">' + (r.empCode||'-') + '</td>' +
+      '<td>' + (r.empName||'-') + '</td>' +
+      '<td style="text-align:center;font-size:12px">' + (r.itemCode||'-') + '</td>' +
+      '<td>' + (r.itemName||'-') + '</td>' +
+      '<td style="text-align:center;color:#0070c0;font-size:12px">' + (r.partNo||'-') + '</td>' +
+      '<td style="text-align:right">' + r.pricePerUnit.toLocaleString('th-TH',{minimumFractionDigits:2}) + '</td>' +
+      '<td style="text-align:center;color:#dc2626;font-weight:bold">' + r.qty + '</td>' +
+      '<td style="text-align:right;font-weight:bold;color:#b45309">' + r.totalAmount.toLocaleString('th-TH',{minimumFractionDigits:2}) + '</td>' +
+      '<td style="color:#888;font-size:12px">' + (r.note||'-') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var tbody = document.getElementById('rpt-tbody');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="11" style="text-align:center;color:#888;padding:20px">ไม่พบข้อมูล</td></tr>';
+
+  var totalEl = document.getElementById('rpt-total');
+  if (totalEl) totalEl.textContent = total.toLocaleString('th-TH',{minimumFractionDigits:2}) + ' บาท';
+}
+
+function resetDeductFilter() {
+  ['rpt-q','rpt-df','rpt-dt','rpt-emp-val','rpt-emp-code','rpt-emp-dept'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  var s = document.getElementById('rpt-emp-search'); if(s) s.value='';
+  var d = document.getElementById('rpt-dept'); if(d) d.value='';
+  var st = document.getElementById('rpt-stock'); if(st) st.value='';
+  applyDeductFilter();
+}
+
+function exportDeductExcel() {
+  // Simple CSV export (ไม่ต้องใช้ library)
+  var df = (document.getElementById('rpt-df')||{}).value||'';
+  var dt = (document.getElementById('rpt-dt')||{}).value||'';
+  var dept = (document.getElementById('rpt-dept')||{}).value||'';
+  var stock = (document.getElementById('rpt-stock')||{}).value||'';
+  var empCode = (document.getElementById('rpt-emp-val')||{}).value||'';
+
+  var filtered = _deductData.filter(function(r) {
+    return (!((document.getElementById('rpt-q')||{}).value) || true) // ใช้ filtered ล่าสุดจาก applyDeductFilter แทน
+      && (!empCode || r.empCode === empCode)
+      && (!dept || r.department === dept)
+      && (!stock || r.stockType === stock);
+  });
+
+  var BOM = '\uFEFF';
+  var header = 'วันที่,แผนก,รหัสพนักงาน,ชื่อพนักงาน,รหัสสินค้า,รายการ,Part No.,ราคา/หน่วย,จำนวน,ยอดรวม,หมายเหตุ\n';
+  var rows = filtered.map(function(r) {
+    return [toDisplayDate(r.date), r.department, r.empCode, r.empName, r.itemCode, r.itemName, r.partNo, r.pricePerUnit, r.qty, r.totalAmount, r.note].map(function(v){ return '"' + (v||'').toString().replace(/"/g,'""') + '"'; }).join(',');
+  }).join('\n');
+
+  var blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'deduction_report_' + (df||'all') + '_' + (dt||'all') + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+}

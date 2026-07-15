@@ -682,6 +682,55 @@ var SUPA_API = (function () {
     }
   }
 
+  // ดึงรายการเบิกที่หักเงินเดือน (price_snapshot > 0) จากทุกหมวดในครั้งเดียว
+  async function getDeductionReport(dateFrom, dateTo) {
+    try {
+      var STOCK_TYPES = ['office', 'machine', 'uniform'];
+      var allRows = [];
+
+      for (var i = 0; i < STOCK_TYPES.length; i++) {
+        var st = STOCK_TYPES[i];
+        var q = sb.from(st + '_issue')
+          .select('id,date,emp_code,emp_name,department,item_code,item_name,qty,price_snapshot,issue_type,note')
+          .gt('price_snapshot', 0);
+        if (dateFrom) q = q.gte('date', dateFrom);
+        if (dateTo)   q = q.lte('date', dateTo);
+        var res = throwIfError(await q.order('date'));
+
+        // ดึง part_no จาก master_products สำหรับ machine
+        var itemCodes = [...new Set((res.data || []).map(function(r){ return r.item_code; }))];
+        var prodMap = {};
+        if (itemCodes.length) {
+          var pr = await sb.from('master_products').select('item_code,extra1,price').in('item_code', itemCodes);
+          if (!pr.error) (pr.data || []).forEach(function(p){ prodMap[p.item_code] = p; });
+        }
+
+        (res.data || []).forEach(function(r) {
+          var prod = prodMap[r.item_code] || {};
+          allRows.push({
+            stockType: st,
+            date: r.date || '',
+            department: r.department || '',
+            empCode: r.emp_code || '',
+            empName: r.emp_name || '',
+            itemCode: r.item_code || '',
+            itemName: r.item_name || '',
+            partNo: prod.extra1 || '',
+            pricePerUnit: Number(r.price_snapshot) || 0,
+            qty: Number(r.qty) || 0,
+            totalAmount: (Number(r.price_snapshot) || 0) * (Number(r.qty) || 0),
+            note: r.note || '',
+            issueType: r.issue_type || ''
+          });
+       });
+     }
+
+      return { ok: true, data: allRows };
+    } catch(e) {
+      return { ok: false, data: [], message: e.message };
+    }
+  }
+
   return {
     getDropdownOptions: getDropdownOptions,
     login: login,
@@ -708,6 +757,7 @@ var SUPA_API = (function () {
     deleteIssue: deleteIssue,
     getBalance: getBalance,
     getDashboardSummary: getDashboardSummary,
-    getAdminLogs: getAdminLogs
+    getAdminLogs: getAdminLogs,
+    getDeductionReport: getDeductionReport
   };
 })();

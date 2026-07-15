@@ -133,3 +133,7 @@ td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
 .bulk-result-item.fail{background:#fef2f2;color:#dc2626}
 .imod-img-remove-btn{position:absolute;top:-7px;right:-7px;background:#dc2626;color:#fff;border:2px solid #fff;border-radius:50%;width:22px;height:22px;font-size:12px;font-weight:bold;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.3)}
 .imod-img-remove-btn:hover{background:#b91c1c}
+/* เพิ่มท้ายไฟล์ */
+/* Reports card — home-grid 5 items */
+.home-grid { grid-template-columns: repeat(2, 1fr); }
+@media(min-width:601px) { .home-grid { grid-template-columns: repeat(3, 1fr); max-width:700px; } }

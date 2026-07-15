@@ -63,11 +63,16 @@
     <div class="home-card" style="border-color:#7c3aed" onclick="openApp('uniform')">
       <div class="icon">👕</div>
       <div class="name" style="color:#7c3aed">Uniform Stock</div>
-      <div class="desc">เสื้อผ้าพนักงาน<br>แยกไซส์และสถานะ</div>
+      <div class="desc">เสื้อผ้าพนักงาน<br>และเครื่องแต่งกาย</div>
+    </div>
+    <div class="home-card" style="border-color:#eacc25" onclick="openApp('reports')">
+      <div class="icon">📊</div>
+      <div class="name" style="color:#eacc25">Reports</div>
+      <div class="desc">การคำนวณราคา<br>และรายงานสรุป</div>
     </div>
   </div>
   <div style="margin-top:20px">
-    <button class="btn btn-gray btn-sm" onclick="openSettings()">⚙️ ตั้งค่าระบบ</button>
+    <button class="btn btn-gray btn-sm" onclick="openSettings()">⚙️ Settings</button>
   </div>
 </div>
 
@@ -160,7 +165,7 @@
 <!-- MODAL: Settings -->
 <div class="modal-bg" id="settings-modal">
   <div class="modal" style="max-width:600px">
-    <h3>⚙️ ตั้งค่าระบบ</h3>
+    <h3>⚙️ Settings</h3>
     <div class="tabs" style="margin:-10px -22px 16px;border-bottom:2px solid #e5e7eb">
       <button class="tab active" id="stab-admin" onclick="switchSettingsTab('admin')" style="color:#0070c0">👤 แอดมิน</button>
       <button class="tab" id="stab-emp" onclick="switchSettingsTab('emp')" style="color:#0070c0">👥 พนักงาน</button>
