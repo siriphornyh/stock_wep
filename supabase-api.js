@@ -435,7 +435,7 @@ var SUPA_API = (function () {
   async function saveReceive(stockType, record, adminName) {
     try {
       if (isFutureDate(record.date)) {
-        return { ok: false, message: "❌ ไม่สามารถบันทึกวันที่ในอนาคตได้ (" + record.date + ")" };
+        return { ok: false, message: "❌ วันที่ดังกล่าวไม่สามารถบันทึกได้ขณะนี้ (" + record.date + ")" };
       }
       throwIfError(await sb.from(tbl(stockType, "receive")).insert([{
         date: record.date, item_code: record.itemCode, item_name: record.itemName,
@@ -485,7 +485,7 @@ var SUPA_API = (function () {
   async function saveIssue(stockType, record, adminName) {
     try {
       if (isFutureDate(record.date)) {
-        return { ok: false, message: "❌ ไม่สามารถบันทึกวันที่ในอนาคตได้ (" + record.date + ")" };
+        return { ok: false, message: "❌ วันที่ดังกล่าวไม่สามารถบันทึกได้ขณะนี้ (" + record.date + ")" };
       }
       var st = stockType.toLowerCase();
 
@@ -499,7 +499,7 @@ var SUPA_API = (function () {
             return {
               ok: false,
               message: "❌ ไม่สามารถบันทึกได้ — ยอดคงเหลือมีเพียง " + prod.balance + " " + prod.unit +
-                " แต่พยายามเบิก " + qtyRequested + " " + prod.unit + " (เกินยอดคงเหลือจริง)"
+                " แต่ต้องการเบิก " + qtyRequested + " " + prod.unit + " ยอคคงเหลือไม่เพียงพอ "
             };
           }
         }
