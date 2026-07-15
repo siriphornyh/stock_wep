@@ -360,12 +360,14 @@ function renderItems(sys) {
       '<input type="file" id="bulk-file-input" accept="image/*" multiple style="display:none"></div>' +
       '<div id="bulk-result-wrap"></div></div>';
     html += '<div class="card"><div class="card-title" style="color:' + col + '">📦 รายการทั้งหมด (' + items.length + ')' +
-      '<button class="btn btn-sm" style="background:' + col + ';color:#fff" onclick="openItemModal(\'' + sys + '\')">➕ เพิ่ม</button></div>' +
+      '<div style="display:flex;gap:8px;align-items:center">' +
+      '<input type="text" id="items-search" placeholder="🔍 ค้นหา..." style="width:200px;font-size:12px" oninput="filterItemsTable(\'' + sys + '\')">' +
+      '<button class="btn btn-sm" style="background:' + col + ';color:#fff" onclick="openItemModal(\'' + sys + '\')">➕ เพิ่ม</button>' +
       '<div style="overflow-x:auto"><table><thead><tr style="background:' + col + ';color:#fff"><th>รูป</th><th>รหัส</th><th>ชื่อ</th>';
     if (isUniform) html += '<th>ไซส์</th>';
     if (isMedicine) html += '<th>หมดอายุ</th>';
     if (isMachine) html += '<th>Part No.</th>';
-    html += '<th>หมวดหมู่</th><th>หน่วย</th><th>ขั้นต่ำ</th><th>จัดการ</th></tr></thead><tbody>';
+    html += '<th>หมวดหมู่</th><th>หน่วย</th><th>ขั้นต่ำ</th><th>จัดการ</th></tr></thead><tbody id="items-tbody">';
     items.forEach(function(item, idx) {
       html += '<tr style="background:' + (idx % 2 === 0 ? '#fafafa' : '#fff') + '">';
       html += '<td style="text-align:center">' + imgOrPh(item.imageUrl, 40) + '</td>';
@@ -385,6 +387,39 @@ function renderItems(sys) {
     document.getElementById('app-content').innerHTML = html;
     initBulkDropZone_(sys);
   });
+}
+
+function filterItemsTable(sys) {
+  var q = (document.getElementById('items-search').value || '').toLowerCase();
+  var items = _cache[sys + '_items'] || [];
+  var isMachine = sys === 'machine', isMedicine = sys === 'medicine', isUniform = sys === 'uniform';
+  var col = sysColor(sys);
+
+  var filtered = q ? items.filter(function(item) {
+    return (item.itemName || '').toLowerCase().includes(q) ||
+           (item.aliases || '').toLowerCase().includes(q) ||
+           (item.itemCode || '').toLowerCase().includes(q);
+  }) : items;
+
+  var rows = '';
+  filtered.forEach(function(item, idx) {
+    rows += '<tr style="background:' + (idx % 2 === 0 ? '#fafafa' : '#fff') + '">';
+    rows += '<td style="text-align:center">' + imgOrPh(item.imageUrl, 40) + '</td>';
+    rows += '<td style="color:#888;text-align:center;font-size:12px">' + item.itemCode + '</td>';
+    rows += '<td><b>' + item.itemName + '</b>' + (item.aliases ? '<br><span style="font-size:11px;color:#888">[' + item.aliases + ']</span>' : '') + '</td>';
+    if (isUniform) rows += '<td style="text-align:center">' + (item.extra2 || '-') + '</td>';
+    if (isMedicine) rows += '<td style="text-align:center;font-size:12px;color:' + (item.extra1 && daysTillExp(item.extra1) <= 30 ? '#dc2626' : '#555') + '">' + (item.extra1 ? toDisplayDate(item.extra1) : '-') + '</td>';
+    if (isMachine) rows += '<td style="text-align:center;font-size:12px">' + (item.extra1 || '-') + '</td>';
+    rows += '<td style="text-align:center;font-size:12px">' + item.category + '</td>';
+    rows += '<td style="text-align:center">' + item.unit + '</td>';
+    rows += '<td style="text-align:center;color:#d97706"><b>' + item.minStock + '</b></td>';
+    rows += '<td style="text-align:center;white-space:nowrap">' +
+      '<button class="btn btn-blue btn-sm" onclick="openItemModal(\'' + sys + '\',\'' + item.itemCode + '\')">✏️</button> ' +
+      '<button class="btn btn-red btn-sm" onclick="deleteItem(\'' + sys + '\',\'' + item.itemCode + '\')">🗑️</button></td></tr>';
+  });
+
+  var tbody = document.getElementById('items-tbody');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:#888;padding:20px">ไม่พบรายการ</td></tr>';
 }
 
 // ============================================================
