@@ -363,6 +363,7 @@ function renderItems(sys) {
       '<div style="display:flex;gap:8px;align-items:center">' +
       '<input type="text" id="items-search" placeholder="🔍 ค้นหา..." style="width:200px;font-size:12px" oninput="filterItemsTable(\'' + sys + '\')">' +
       '<button class="btn btn-sm" style="background:' + col + ';color:#fff" onclick="openItemModal(\'' + sys + '\')">➕ เพิ่ม</button>' +
+      '</div></div>' +
       '<div style="overflow-x:auto"><table><thead><tr style="background:' + col + ';color:#fff"><th>รูป</th><th>รหัส</th><th>ชื่อ</th>';
     if (isUniform) html += '<th>ไซส์</th>';
     if (isMedicine) html += '<th>หมดอายุ</th>';
