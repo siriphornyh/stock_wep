@@ -1550,7 +1550,7 @@ function renderDeductionReport() {
     '</div>' +
     // Sticky Total Footer
     '<div id="rpt-footer" style="position:fixed;bottom:0;left:0;right:0;background:#eacc25;color:#1e293b;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:15px;box-shadow:0 -2px 10px rgba(0,0,0,.15);z-index:500">' +
-      '<span>💰 ยอดรวมเงินทั้งหมด (ที่กรองแล้ว)</span>' +
+      '<span>💰 ยอดรวมเงินทั้งหมด </span>' +
       '<span id="rpt-total">0.00 บาท</span>' +
     '</div>';
 
