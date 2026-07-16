@@ -647,6 +647,7 @@ function renderReceive(sys) {
     html += '<div class="fr"><label>วันที่รับ</label><input type="date" id="r-date" value="' + todayVal + '" max="' + todayVal + '"><div style="font-size:10px;color:#888;margin-top:3px">รูปแบบที่บันทึก/แสดงผล: วัน/เดือน/ปี (DD/MM/YYYY)</div></div>';
     html += '<div class="fr"><label>สินค้า/รายการ</label><div class="sw"><input type="text" id="r-item-search" placeholder="พิมพ์เพื่อค้นหา..." autocomplete="off"><input type="hidden" id="r-item-val"><div class="ddl" id="r-item-list"></div></div></div>';
     html += '<div class="fr"><label>จำนวนรับ</label><input type="number" id="r-qty" placeholder="0" min="1"></div>';
+    html += '<div class="fr"><label>ราคา/หน่วย (บาท)</label><input type="number" id="r-price" placeholder="0.00" min="0" step="0.01"></div>';
     html += '<div class="fr"><label>หมายเหตุ</label><input type="text" id="r-note" placeholder="(ถ้ามี)"></div>';
     html += '</div><div style="font-size:12px;color:#888;margin-bottom:8px">ผู้บันทึก: <b>' + currentAdmin + '</b></div>';
     html += '<button class="btn" style="background:' + col + ';color:#fff" onclick="saveReceiveData(\'' + sys + '\')">📥 บันทึกรับเข้า</button></div>';
@@ -665,7 +666,7 @@ function renderReceive(sys) {
     var thHtml = '<th>วันที่</th><th>รหัสสินค้า</th><th>รายการ</th>';
     if (isMachine) thHtml += '<th>Part No.</th>';
     if (isUniform) thHtml += '<th>ไซส์</th>';
-    thHtml += '<th>จำนวน</th><th>หน่วยนับ</th><th>ผู้บันทึก</th><th>หมายเหตุ</th><th></th>';
+    thHtml += '<th>จำนวน</th><th>หน่วยนับ</th><th>ราคา/หน่วย</th><th>ผู้บันทึก</th><th>หมายเหตุ</th><th></th>';
 
     html += '<div class="card"><div class="card-title">ประวัติการรับสินค้า</div>' + filterBar;
     html += '<div style="overflow-x:auto"><table><thead><tr style="background:' + col + ';color:#fff">' + thHtml + '</tr></thead><tbody id="rec-tbody"></tbody></table></div></div>';
@@ -717,12 +718,13 @@ function renderReceiveTable(sys) {
       extraTd +
       '<td style="text-align:center;color:#16a34a;font-weight:bold">+' + r.qty + '</td>' +
       '<td style="text-align:center">' + unit + '</td>' +
+      '<td style="text-align:right;color:#b45309;font-weight:bold">' + (r.price > 0 ? r.price.toLocaleString('th-TH',{minimumFractionDigits:2}) : '-') + '</td>' +
       '<td style="text-align:center">' + r.recordedBy + '</td>' +
       '<td style="color:#888">' + (r.note || '-') + '</td>' +
       '<td style="text-align:center"><button class="btn btn-red btn-sm" onclick="delReceiveRow(\'' + sys + '\',' + r.rowIndex + ')">🗑️</button></td></tr>';
   }).join('');
 
-  var colCount = (isMachine || isUniform) ? 10 : 9;
+  var colCount = (isMachine || isUniform) ? 11 : 10;
   var tbody = document.getElementById('rec-tbody');
   if (tbody) tbody.innerHTML = rows || '<tr><td colspan="' + colCount + '" style="text-align:center;color:#888;padding:20px">ไม่พบข้อมูล</td></tr>';
   var cnt = document.getElementById('rec-filter-count');
@@ -775,7 +777,8 @@ function saveReceiveData(sys) {
   }
   var items = _cache[sys + '_items'] || [];
   var item = items.find(function(i) { return i.itemCode === itemCode; }) || {};
-  var record = { date: date, itemCode: itemCode, itemName: item.itemName || itemCode, qty: qty, note: note };
+  var price = Number(document.getElementById('r-price').value) || 0;
+  var record = { date: date, itemCode: itemCode, itemName: item.itemName || itemCode, qty: qty, price: price, note: note };
   gas('saveReceive', [sys, record, currentAdmin], function(res) {
     if (res.ok) { showToast('✅ บันทึกรับเข้าสำเร็จ', '#16a34a'); renderReceive(sys); }
     else showToast('❌ ' + (res.message || 'บันทึกไม่สำเร็จ'), '#dc2626');

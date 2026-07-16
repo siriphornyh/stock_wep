@@ -23,6 +23,10 @@ ALTER TABLE medicine_receive  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE medicine_issue    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE uniform_receive   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE uniform_issue     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE office_receive   ADD COLUMN IF NOT EXISTS price DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE machine_receive  ADD COLUMN IF NOT EXISTS price DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE medicine_receive ADD COLUMN IF NOT EXISTS price DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE uniform_receive  ADD COLUMN IF NOT EXISTS price DECIMAL(12,2) DEFAULT 0;
 
 CREATE POLICY anon_all ON config            FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY anon_all ON employee_list     FOR ALL USING (true) WITH CHECK (true);
@@ -38,6 +42,10 @@ CREATE POLICY anon_all ON medicine_receive  FOR ALL USING (true) WITH CHECK (tru
 CREATE POLICY anon_all ON medicine_issue    FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY anon_all ON uniform_receive   FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY anon_all ON uniform_issue     FOR ALL USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_office_receive_item_date   ON office_receive   (item_code, date DESC);
+CREATE INDEX IF NOT EXISTS idx_machine_receive_item_date  ON machine_receive  (item_code, date DESC);
+CREATE INDEX IF NOT EXISTS idx_medicine_receive_item_date ON medicine_receive (item_code, date DESC);
+CREATE INDEX IF NOT EXISTS idx_uniform_receive_item_date  ON uniform_receive  (item_code, date DESC);
 
 -- ============================================================
 --  SEED: ค่าเริ่มต้น (เหมือน setupSheets() เดิม)

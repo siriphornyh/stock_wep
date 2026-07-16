@@ -416,17 +416,22 @@ var SUPA_API = (function () {
   // ============================================================
   //  PRICE SNAPSHOT (หักเงินเดือน)
   // ============================================================
-  function computeSnapshotPrice(stockType, product, issueType) {
+  function computeSnapshotPrice(stockType, product, issueType, historicalPrice) {
     var st = (stockType || "").toLowerCase();
-    if (st === "office" || st === "medicine") return 0;
-    if (st === "machine" || st === "uniform") {
-      if (!product) return 0;
+    var basePrice = Number(historicalPrice) || Number((product||{}).price) || 0;
+
+    if (st === "medicine") return basePrice; // บันทึกต้นทุนเสมอ ไม่หักเงินเดือน
+
+    // office, machine, uniform — หักเงินเดือนเฉพาะ issueType === 'self'
+    if (st === "office" || st === "machine" || st === "uniform") {
+      if (!product) return basePrice;
       var deduct = (product.deductSalary || "N").toString().trim().toUpperCase();
       var type = (issueType || "").toString().trim().toLowerCase();
-      if (deduct === "Y" && type === "self") return Number(product.price) || 0;
-      return 0;
+      if (deduct === "Y" && type === "self") return basePrice; // หักเงินเดือน
+      return basePrice; // บันทึกต้นทุนเสมอ (แต่ report แยกได้ว่าหักหรือไม่จาก issueType)
     }
-    return 0;
+
+    return basePrice;
   }
 
   // ============================================================
@@ -437,10 +442,15 @@ var SUPA_API = (function () {
       if (isFutureDate(record.date)) {
         return { ok: false, message: "❌ วันที่ดังกล่าวไม่สามารถบันทึกได้ขณะนี้ (" + record.date + ")" };
       }
+      var priceVal = Number(record.price) || 0;
       throwIfError(await sb.from(tbl(stockType, "receive")).insert([{
         date: record.date, item_code: record.itemCode, item_name: record.itemName,
-        qty: record.qty, recorded_by: adminName, note: record.note || ""
+        qty: record.qty, price: priceVal, recorded_by: adminName, note: record.note || ""
       }]));
+      // อัปเดตราคาล่าสุดใน master_products เมื่อมีราคาจริง
+      if (priceVal > 0) {
+        await sb.from("master_products").update({ price: priceVal }).eq("item_code", record.itemCode);
+      }
       await writeLog(adminName, "RECEIVE_" + stockType.toUpperCase(), record.itemCode + " x" + record.qty);
       return { ok: true };
     } catch (e) {
@@ -459,6 +469,7 @@ var SUPA_API = (function () {
           itemCode: r.item_code || "",
           itemName: r.item_name || "",
           qty: Number(r.qty) || 0,
+          price: Number(r.price) || 0,
           recordedBy: r.recorded_by || "",
           note: r.note || ""
         };
@@ -519,7 +530,8 @@ var SUPA_API = (function () {
       } catch (e) { /* ไม่มีข้อมูลสินค้า -> snapshot = 0 */ }
 
       var issueTypeForPricing = record.issueType || "";
-      var priceSnapshot = computeSnapshotPrice(st, productInfo, issueTypeForPricing);
+      var historicalPrice = await getHistoricalPrice(st, record.itemCode, record.date);
+      var priceSnapshot = computeSnapshotPrice(st, productInfo, issueTypeForPricing, historicalPrice);
 
       var row = {
         date: record.date, item_code: record.itemCode, item_name: record.itemName, qty: record.qty,
@@ -731,6 +743,21 @@ var SUPA_API = (function () {
     }
   }
 
+  async function getHistoricalPrice(stockType, itemCode, targetDate) {
+    try {
+      var res = await sb.from(tbl(stockType, "receive"))
+        .select("price, date")
+        .eq("item_code", itemCode)
+        .lte("date", targetDate)          // date <= วันที่เบิก
+        .gt("price", 0)                   // มีราคาจริง
+        .order("date", { ascending: false })
+        .limit(1)
+        .single();
+      if (res.error || !res.data) return 0;
+      return Number(res.data.price) || 0;
+    } catch(e) { return 0; }
+  }
+
   return {
     getDropdownOptions: getDropdownOptions,
     login: login,
@@ -758,6 +785,7 @@ var SUPA_API = (function () {
     getBalance: getBalance,
     getDashboardSummary: getDashboardSummary,
     getAdminLogs: getAdminLogs,
-    getDeductionReport: getDeductionReport
+    getDeductionReport: getDeductionReport,
+    getHistoricalPrice: getHistoricalPrice,
   };
 })();
