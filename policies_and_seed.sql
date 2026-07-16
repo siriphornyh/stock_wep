@@ -42,10 +42,7 @@ CREATE POLICY anon_all ON medicine_receive  FOR ALL USING (true) WITH CHECK (tru
 CREATE POLICY anon_all ON medicine_issue    FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY anon_all ON uniform_receive   FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY anon_all ON uniform_issue     FOR ALL USING (true) WITH CHECK (true);
-CREATE INDEX IF NOT EXISTS idx_office_receive_item_date   ON office_receive   (item_code, date DESC);
-CREATE INDEX IF NOT EXISTS idx_machine_receive_item_date  ON machine_receive  (item_code, date DESC);
-CREATE INDEX IF NOT EXISTS idx_medicine_receive_item_date ON medicine_receive (item_code, date DESC);
-CREATE INDEX IF NOT EXISTS idx_uniform_receive_item_date  ON uniform_receive  (item_code, date DESC);
+
 
 -- ============================================================
 --  SEED: ค่าเริ่มต้น (เหมือน setupSheets() เดิม)

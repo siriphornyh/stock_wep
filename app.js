@@ -1508,63 +1508,47 @@ var _deductData = []; // cache ข้อมูลดิบทั้งหมด
 function renderDeductionReport() {
   var col = '#b45309';
   document.getElementById('app-content').innerHTML =
-    // Control Panel
     '<div class="card">' +
       // Row 1: ค้นหาทั่วไป + วันที่ + Export
       '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
-        '<div style="flex:1;min-width:160px"><label>🔍 ค้นหา (ชื่อ/รหัส/สินค้า)</label><input type="text" id="rpt-q" placeholder="พิมพ์เพื่อค้นหา..." oninput="applyDeductFilter()"></div>' +
-        '<div><label>วันที่เริ่ม</label><input type="date" id="rpt-df" onchange="loadDeductData()"></div>' +
-        '<div><label>วันที่สิ้นสุด</label><input type="date" id="rpt-dt" onchange="loadDeductData()"></div>' +
+        '<div style="flex:1;min-width:160px"><label>🔍 ค้นหา (ชื่อ/รหัส/สินค้า/แผนก)</label><input type="text" id="rpt-q" placeholder="พิมพ์เพื่อค้นหา..."></div>' +
+        '<div><label>วันที่เริ่ม</label><input type="date" id="rpt-df"></div>' +
+        '<div><label>วันที่สิ้นสุด</label><input type="date" id="rpt-dt"></div>' +
         '<button class="btn btn-green btn-sm" style="align-self:flex-end" onclick="exportDeductExcel()">📥 Export Excel</button>' +
       '</div>' +
-      // Row 2: ค้นหาพนักงาน Autocomplete
+      // Row 2: Autocomplete พนักงาน + autofill
       '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
         '<div style="flex:1;min-width:160px"><label>👤 ชื่อพนักงาน</label>' +
           '<div class="sw"><input type="text" id="rpt-emp-search" placeholder="พิมพ์ชื่อ..." autocomplete="off" oninput="filterRptEmpDD()">' +
           '<input type="hidden" id="rpt-emp-val"><div class="ddl" id="rpt-emp-list"></div></div></div>' +
         '<div style="width:130px"><label>รหัสพนักงาน</label><input type="text" id="rpt-emp-code" readonly class="af-box"></div>' +
-        '<div style="width:160px"><label>แผนก (ของพนักงาน)</label><input type="text" id="rpt-emp-dept" readonly class="af-box"></div>' +
+        '<div style="width:160px"><label>แผนก</label><input type="text" id="rpt-emp-dept" readonly class="af-box"></div>' +
       '</div>' +
-      // Row 3: Filter แผนก + หมวดหมู่
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
-        '<div style="width:200px"><label>🏢 แผนก (Filter ทั้งแผนก)</label>' +
-          '<select id="rpt-dept" onchange="applyDeductFilter()"><option value="">— รวมทุกแผนก —</option></select></div>' +
-        '<div style="width:200px"><label>📦 หมวดหมู่สินค้า</label>' +
-          '<select id="rpt-stock" onchange="applyDeductFilter()">' +
-            '<option value="">— ทุกหมวด —</option>' +
-            '<option value="office">Office</option>' +
-            '<option value="machine">Machine</option>' +
-            '<option value="uniform">Uniform</option>' +
-          '</select></div>' +
+      // Row 3: ปุ่มยืนยัน + Reset
+      '<div style="display:flex;gap:8px">' +
+        '<button class="btn btn-blue btn-sm" onclick="loadDeductData()">🔍 ยืนยัน / ค้นหา</button>' +
+        '<button class="btn btn-gray btn-sm" onclick="resetDeductFilter()">✖ ล้างค่าทั้งหมด</button>' +
       '</div>' +
-      // Row 4: Reset
-      '<button class="btn btn-gray btn-sm" onclick="resetDeductFilter()">✖ ล้างค่าทั้งหมด</button>' +
     '</div>' +
-    // ตาราง (padding-bottom เผื่อ sticky footer)
     '<div class="card" style="padding-bottom:60px">' +
       '<div style="overflow-x:auto"><table>' +
         '<thead><tr style="background:' + col + ';color:#fff">' +
-          '<th>วันที่</th><th>แผนก</th><th>รหัสพนักงาน</th><th>ชื่อพนักงาน</th>' +
-          '<th>รหัสสินค้า</th><th>รายการ</th><th>Part No.</th>' +
-          '<th>ราคา/หน่วย</th><th>จำนวน</th><th>ยอดรวม</th><th>หมายเหตุ</th>' +
+          '<th>วันที่</th><th>หมวดหมู่</th><th>รหัสสินค้า</th><th>รายการ</th>' +
+          '<th>Part No.</th><th>ราคา/หน่วย</th><th>จำนวน</th><th>ยอดรวม</th><th>หมายเหตุ</th>' +
         '</tr></thead>' +
-        '<tbody id="rpt-tbody"><tr><td colspan="11" style="text-align:center;color:#888;padding:30px">⏳ กำลังโหลด...</td></tr></tbody>' +
+        '<tbody id="rpt-tbody"><tr><td colspan="9" style="text-align:center;color:#888;padding:30px">กรอกเงื่อนไขแล้วกด "ยืนยัน / ค้นหา"</td></tr></tbody>' +
       '</table></div>' +
     '</div>' +
-    // Sticky Total Footer
     '<div id="rpt-footer" style="position:fixed;bottom:0;left:0;right:0;background:#eacc25;color:#1e293b;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:15px;box-shadow:0 -2px 10px rgba(0,0,0,.15);z-index:500">' +
-      '<span>💰 ยอดรวมเงินทั้งหมด </span>' +
-      '<span id="rpt-total">0.00 บาท</span>' +
+      '<span>💰 ยอดรวมเงินทั้งหมด (ที่กรองแล้ว)</span>' +
+      '<span id="rpt-total">— บาท</span>' +
     '</div>';
 
-  // โหลด employees สำหรับ autocomplete
   var emps = _cache['employees'];
-  if (emps) { _initRptEmpSearch(emps); _initRptDeptDD(emps); }
+  if (emps) _initRptEmpSearch(emps);
   else gas('getEmployees', [], function(res) {
-    if (res.ok) { _cache['employees'] = res.data; _initRptEmpSearch(res.data); _initRptDeptDD(res.data); }
+    if (res.ok) { _cache['employees'] = res.data; _initRptEmpSearch(res.data); }
   });
-
-  loadDeductData();
 }
 
 function _initRptEmpSearch(emps) {
@@ -1602,8 +1586,10 @@ function _initRptDeptDD(emps) {
 function loadDeductData() {
   var df = (document.getElementById('rpt-df')||{}).value || '';
   var dt = (document.getElementById('rpt-dt')||{}).value || '';
+  showLoading(true, '⏳ กำลังดึงข้อมูล...');
   gas('getDeductionReport', [df, dt], function(res) {
     _deductData = res.ok ? res.data : [];
+    if (!res.ok) showToast('❌ ดึงข้อมูลไม่ได้: ' + (res.message||''), '#dc2626');
     applyDeductFilter();
   });
 }
@@ -1611,48 +1597,50 @@ function loadDeductData() {
 function applyDeductFilter() {
   var q       = ((document.getElementById('rpt-q')||{}).value||'').toLowerCase();
   var empCode = ((document.getElementById('rpt-emp-val')||{}).value||'');
-  var dept    = ((document.getElementById('rpt-dept')||{}).value||'');
-  var stock   = ((document.getElementById('rpt-stock')||{}).value||'');
 
   var filtered = _deductData.filter(function(r) {
-    var matchQ    = !q    || (r.empName||'').toLowerCase().includes(q) || (r.empCode||'').toLowerCase().includes(q) || (r.itemName||'').toLowerCase().includes(q) || (r.itemCode||'').toLowerCase().includes(q);
-    var matchEmp  = !empCode || r.empCode === empCode;
-    var matchDept = !dept  || r.department === dept;
-    var matchSt   = !stock || r.stockType === stock;
-    return matchQ && matchEmp && matchDept && matchSt;
+    var matchQ   = !q || (r.empName||'').toLowerCase().includes(q)
+                      || (r.empCode||'').toLowerCase().includes(q)
+                      || (r.department||'').toLowerCase().includes(q)
+                      || (r.itemName||'').toLowerCase().includes(q)
+                      || (r.itemCode||'').toLowerCase().includes(q);
+    var matchEmp = !empCode || r.empCode === empCode;
+    return matchQ && matchEmp;
   });
 
+  var STOCK_LABEL = { office:'Office', machine:'Machine', uniform:'Uniform', medicine:'Medicine' };
   var total = 0;
   var rows = filtered.map(function(r, idx) {
     total += r.totalAmount;
     return '<tr style="background:' + (idx%2===0?'#fafafa':'#fff') + '">' +
       '<td style="white-space:nowrap">' + toDisplayDate(r.date) + '</td>' +
-      '<td>' + (r.department||'-') + '</td>' +
-      '<td style="text-align:center;font-size:12px">' + (r.empCode||'-') + '</td>' +
-      '<td>' + (r.empName||'-') + '</td>' +
+      '<td style="text-align:center"><span class="badge badge-ok">' + (STOCK_LABEL[r.stockType]||r.stockType) + '</span></td>' +
       '<td style="text-align:center;font-size:12px">' + (r.itemCode||'-') + '</td>' +
       '<td>' + (r.itemName||'-') + '</td>' +
       '<td style="text-align:center;color:#0070c0;font-size:12px">' + (r.partNo||'-') + '</td>' +
-      '<td style="text-align:right">' + r.pricePerUnit.toLocaleString('th-TH',{minimumFractionDigits:2}) + '</td>' +
-      '<td style="text-align:center;color:#dc2626;font-weight:bold">' + r.qty + '</td>' +
+      '<td style="text-align:right">' + (r.pricePerUnit > 0 ? r.pricePerUnit.toLocaleString('th-TH',{minimumFractionDigits:2}) : '-') + '</td>' +
+      '<td style="text-align:center;font-weight:bold">' + r.qty + '</td>' +
       '<td style="text-align:right;font-weight:bold;color:#b45309">' + r.totalAmount.toLocaleString('th-TH',{minimumFractionDigits:2}) + '</td>' +
       '<td style="color:#888;font-size:12px">' + (r.note||'-') + '</td>' +
     '</tr>';
   }).join('');
 
   var tbody = document.getElementById('rpt-tbody');
-  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="11" style="text-align:center;color:#888;padding:20px">ไม่พบข้อมูล</td></tr>';
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:#888;padding:20px">ไม่พบข้อมูล</td></tr>';
 
   var totalEl = document.getElementById('rpt-total');
   if (totalEl) totalEl.textContent = total.toLocaleString('th-TH',{minimumFractionDigits:2}) + ' บาท';
 }
 
 function resetDeductFilter() {
-  ['rpt-q','rpt-df','rpt-dt','rpt-emp-val','rpt-emp-code','rpt-emp-dept'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  ['rpt-q','rpt-df','rpt-dt','rpt-emp-val','rpt-emp-code','rpt-emp-dept'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value='';
+  });
   var s = document.getElementById('rpt-emp-search'); if(s) s.value='';
-  var d = document.getElementById('rpt-dept'); if(d) d.value='';
-  var st = document.getElementById('rpt-stock'); if(st) st.value='';
-  applyDeductFilter();
+  _deductData = [];
+  var tbody = document.getElementById('rpt-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:20px">กรอกเงื่อนไขแล้วกด "ยืนยัน / ค้นหา"</td></tr>';
+  var totalEl = document.getElementById('rpt-total'); if(totalEl) totalEl.textContent = '— บาท';
 }
 
 function exportDeductExcel() {

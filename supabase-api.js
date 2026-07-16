@@ -548,6 +548,7 @@ var SUPA_API = (function () {
         row.note = record.note || "";
       }
 
+      row.total_amount = (Number(priceSnapshot) || 0) * (Number(record.qty) || 0);
       throwIfError(await sb.from(tbl(st, "issue")).insert([row]));
       await writeLog(adminName, "ISSUE_" + stockType.toUpperCase(),
         record.itemCode + " x" + record.qty + " → " + record.empName +
@@ -697,28 +698,30 @@ var SUPA_API = (function () {
   // ดึงรายการเบิกที่หักเงินเดือน (price_snapshot > 0) จากทุกหมวดในครั้งเดียว
   async function getDeductionReport(dateFrom, dateTo) {
     try {
-      var STOCK_TYPES = ['office', 'machine', 'uniform'];
+      var STOCK_TYPES = ['office', 'machine', 'uniform', 'medicine'];
       var allRows = [];
 
       for (var i = 0; i < STOCK_TYPES.length; i++) {
         var st = STOCK_TYPES[i];
         var q = sb.from(st + '_issue')
-          .select('id,date,emp_code,emp_name,department,item_code,item_name,qty,price_snapshot,issue_type,note')
-          .gt('price_snapshot', 0);
+        .select('id,date,emp_code,emp_name,department,item_code,item_name,qty,price_snapshot,total_amount,issue_type,note');
         if (dateFrom) q = q.gte('date', dateFrom);
         if (dateTo)   q = q.lte('date', dateTo);
         var res = throwIfError(await q.order('date'));
 
-        // ดึง part_no จาก master_products สำหรับ machine
         var itemCodes = [...new Set((res.data || []).map(function(r){ return r.item_code; }))];
         var prodMap = {};
         if (itemCodes.length) {
-          var pr = await sb.from('master_products').select('item_code,extra1,price').in('item_code', itemCodes);
+          var pr = await sb.from('master_products').select('item_code,extra1').in('item_code', itemCodes);
           if (!pr.error) (pr.data || []).forEach(function(p){ prodMap[p.item_code] = p; });
         }
 
         (res.data || []).forEach(function(r) {
           var prod = prodMap[r.item_code] || {};
+          var unitPrice = Number(r.price_snapshot) || 0;
+          var qty = Number(r.qty) || 0;
+          // ใช้ total_amount จาก DB ถ้ามี ไม่งั้นคำนวณ fallback
+          var totalAmt = Number(r.total_amount) > 0 ? Number(r.total_amount) : unitPrice * qty;
           allRows.push({
             stockType: st,
             date: r.date || '',
@@ -728,14 +731,14 @@ var SUPA_API = (function () {
             itemCode: r.item_code || '',
             itemName: r.item_name || '',
             partNo: prod.extra1 || '',
-            pricePerUnit: Number(r.price_snapshot) || 0,
-            qty: Number(r.qty) || 0,
-            totalAmount: (Number(r.price_snapshot) || 0) * (Number(r.qty) || 0),
+            pricePerUnit: unitPrice,
+            qty: qty,
+            totalAmount: totalAmt,
             note: r.note || '',
             issueType: r.issue_type || ''
           });
-       });
-     }
+        });
+      }
 
       return { ok: true, data: allRows };
     } catch(e) {
