@@ -422,12 +422,12 @@ var SUPA_API = (function () {
 
     if (st === "medicine") return basePrice; // บันทึกต้นทุนเสมอ ไม่หักเงินเดือน
 
-    // office, machine, uniform — หักเงินเดือนเฉพาะ issueType === 'self'
+    // office, machine, uniform — หักเงินเดือนเฉพาะ issueType === 'self', 'new'
     if (st === "office" || st === "machine" || st === "uniform") {
       if (!product) return basePrice;
       var deduct = (product.deductSalary || "N").toString().trim().toUpperCase();
       var type = (issueType || "").toString().trim().toLowerCase();
-      if (deduct === "Y" && type === "self") return basePrice; // หักเงินเดือน
+      if (deduct === "Y" && type === "self" || type === "new") return basePrice; // หักเงินเดือน
       return basePrice; // บันทึกต้นทุนเสมอ (แต่ report แยกได้ว่าหักหรือไม่จาก issueType)
     }
 
