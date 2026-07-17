@@ -1511,7 +1511,7 @@ function renderDeductionReport() {
   document.getElementById('app-content').innerHTML =
     '<div class="card">' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
-        '<div style="flex:1;min-width:160px"><label>🔍 ค้นหา (ชื่อ/รหัส/สินค้า/แผนก)</label><input type="text" id="rpt-q" oninput="applyDeductFilter()" placeholder="พิมพ์เพื่อค้นหา..."></div>' +
+        '<div style="flex:1;min-width:160px"><label>🔍 ค้นหา (ชื่อ/รหัส/สินค้า/แผนก)</label><input type="text" id="rpt-q" placeholder="พิมพ์เพื่อค้นหา..."></div>' +
         '<div><label>วันที่เริ่ม *</label><input type="date" id="rpt-df"></div>' +
         '<div><label>วันที่สิ้นสุด</label><input type="date" id="rpt-dt"></div>' +
         '<button class="btn btn-green btn-sm" style="align-self:flex-end" onclick="exportDeductExcel()">📥 Export Excel</button>' +
@@ -1525,11 +1525,11 @@ function renderDeductionReport() {
       '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
         '<div style="min-width:160px"><label>📦 หมวดหมู่สินค้า</label>' +
-          '<select id="rpt-cat" onchange="applyDeductFilter()"><option value="">-- ทั้งหมด --</option>' +
+          '<select id="rpt-cat"><option value="">-- ทั้งหมด --</option>' +
           '<option value="office">Office</option><option value="medicine">Medicine</option>' +
           '<option value="machine">Machine</option><option value="uniform">Uniform</option></select></div>' +
         '<div style="min-width:160px"><label>🏢 แผนก (ทั้งแผนก)</label>' +
-          '<select id="rpt-dept" onchange="applyDeductFilter()"><option value="">-- ทั้งหมด --</option></select></div>' +
+          '<select id="rpt-dept"><option value="">-- ทั้งหมด --</option></select></div>' +
       '</div>' +
       '<div style="display:flex;gap:8px">' +
         '<button class="btn btn-blue btn-sm" onclick="loadDeductData()">🔍 ยืนยัน / ค้นหา</button>' +
@@ -1580,7 +1580,7 @@ function selectRptEmp(code, name, dept) {
   document.getElementById('rpt-emp-code').value = code;
   document.getElementById('rpt-emp-dept').value = dept;
   document.getElementById('rpt-emp-list').style.display = 'none';
-  applyDeductFilter();
+  // ลบบรรทัด applyDeductFilter(); ทิ้ง — ต้องรอกด "ยืนยัน" เท่านั้น
 }
 
 function _initRptDeptDD(emps) {
