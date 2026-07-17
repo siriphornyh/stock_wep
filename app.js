@@ -1503,28 +1503,34 @@ function closeModal(id) { document.getElementById(id).classList.remove('show'); 
 // ============================================================
 //  REPORTS — สรุปค่าใช้จ่ายพนักงาน
 // ============================================================
+var _deductSearched = false; // true เมื่อกดยืนยันพร้อมกรอกวันที่ครบแล้วเท่านั้น
 var _deductData = []; // cache ข้อมูลดิบทั้งหมด
 
 function renderDeductionReport() {
   var col = '#b45309';
   document.getElementById('app-content').innerHTML =
     '<div class="card">' +
-      // Row 1: ค้นหาทั่วไป + วันที่ + Export
       '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
-        '<div style="flex:1;min-width:160px"><label>🔍 ค้นหา (ชื่อ/รหัส/สินค้า/แผนก)</label><input type="text" id="rpt-q" placeholder="พิมพ์เพื่อค้นหา..."></div>' +
-        '<div><label>วันที่เริ่ม</label><input type="date" id="rpt-df"></div>' +
+        '<div style="flex:1;min-width:160px"><label>🔍 ค้นหา (ชื่อ/รหัส/สินค้า/แผนก)</label><input type="text" id="rpt-q" oninput="applyDeductFilter()" placeholder="พิมพ์เพื่อค้นหา..."></div>' +
+        '<div><label>วันที่เริ่ม *</label><input type="date" id="rpt-df"></div>' +
         '<div><label>วันที่สิ้นสุด</label><input type="date" id="rpt-dt"></div>' +
         '<button class="btn btn-green btn-sm" style="align-self:flex-end" onclick="exportDeductExcel()">📥 Export Excel</button>' +
       '</div>' +
-      // Row 2: Autocomplete พนักงาน + autofill
       '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
-        '<div style="flex:1;min-width:160px"><label>👤 ชื่อพนักงาน</label>' +
+          '<div style="flex:1;min-width:160px"><label>👤 ชื่อพนักงาน</label>' +
           '<div class="sw"><input type="text" id="rpt-emp-search" placeholder="พิมพ์ชื่อ..." autocomplete="off" oninput="filterRptEmpDD()">' +
           '<input type="hidden" id="rpt-emp-val"><div class="ddl" id="rpt-emp-list"></div></div></div>' +
         '<div style="width:130px"><label>รหัสพนักงาน</label><input type="text" id="rpt-emp-code" readonly class="af-box"></div>' +
-        '<div style="width:160px"><label>แผนก</label><input type="text" id="rpt-emp-dept" readonly class="af-box"></div>' +
+        '<div style="width:160px"><label>แผนก (ของพนักงาน)</label><input type="text" id="rpt-emp-dept" readonly class="af-box"></div>' +
       '</div>' +
-      // Row 3: ปุ่มยืนยัน + Reset
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px">' +
+        '<div style="min-width:160px"><label>📦 หมวดหมู่สินค้า</label>' +
+          '<select id="rpt-cat" onchange="applyDeductFilter()"><option value="">-- ทั้งหมด --</option>' +
+          '<option value="office">Office</option><option value="medicine">Medicine</option>' +
+          '<option value="machine">Machine</option><option value="uniform">Uniform</option></select></div>' +
+        '<div style="min-width:160px"><label>🏢 แผนก (ทั้งแผนก)</label>' +
+          '<select id="rpt-dept" onchange="applyDeductFilter()"><option value="">-- ทั้งหมด --</option></select></div>' +
+      '</div>' +
       '<div style="display:flex;gap:8px">' +
         '<button class="btn btn-blue btn-sm" onclick="loadDeductData()">🔍 ยืนยัน / ค้นหา</button>' +
         '<button class="btn btn-gray btn-sm" onclick="resetDeductFilter()">✖ ล้างค่าทั้งหมด</button>' +
@@ -1533,15 +1539,15 @@ function renderDeductionReport() {
     '<div class="card" style="padding-bottom:60px">' +
       '<div style="overflow-x:auto"><table>' +
         '<thead><tr style="background:' + col + ';color:#fff">' +
-          '<th>วันที่</th><th>หมวดหมู่</th><th>รหัสสินค้า</th><th>รายการ</th>' +
-          '<th>Part No.</th><th>ราคา/หน่วย</th><th>จำนวน</th><th>ยอดรวม</th><th>หมายเหตุ</th>' +
+          '<th>วันที่</th><th>แผนก</th><th>รหัสพนักงาน</th><th>ชื่อพนักงาน</th><th>หมวดหมู่</th>' +
+          '<th>รหัสสินค้า</th><th>รายการที่เบิก</th><th>Part No.</th><th>ราคา/หน่วย</th>' +
+          '<th>จำนวนเบิก</th><th>ยอดรวม</th><th>หมายเหตุ</th>' +
         '</tr></thead>' +
-        '<tbody id="rpt-tbody"><tr><td colspan="9" style="text-align:center;color:#888;padding:30px">กรอกเงื่อนไขแล้วกด "ยืนยัน / ค้นหา"</td></tr></tbody>' +
+        '<tbody id="rpt-tbody"><tr><td colspan="12" style="text-align:center;color:#888;padding:30px">กรุณาเลือก "วันที่เริ่ม" แล้วกด "ยืนยัน / ค้นหา"</td></tr></tbody>' +
       '</table></div>' +
     '</div>' +
     '<div id="rpt-footer" style="position:fixed;bottom:0;left:0;right:0;background:#eacc25;color:#1e293b;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:15px;box-shadow:0 -2px 10px rgba(0,0,0,.15);z-index:500">' +
-      '<span>💰 ยอดรวมเงินทั้งหมด (ที่กรองแล้ว)</span>' +
-      '<span id="rpt-total">— บาท</span>' +
+      '<span>💰 ยอดรวมเงินทั้งหมด </span><span id="rpt-total">— บาท</span>' +
     '</div>';
 
   var emps = _cache['employees'];
@@ -1549,10 +1555,12 @@ function renderDeductionReport() {
   else gas('getEmployees', [], function(res) {
     if (res.ok) { _cache['employees'] = res.data; _initRptEmpSearch(res.data); }
   });
-}
 
-function _initRptEmpSearch(emps) {
-  window._rptEmps = emps;
+  gas('getDepartments', [], function(res) {
+    if (!res.ok) return;
+    var sel = document.getElementById('rpt-dept');
+    res.data.forEach(function(d) { sel.innerHTML += '<option value="' + d + '">' + d + '</option>'; });
+  });
 }
 
 function filterRptEmpDD() {
@@ -1586,6 +1594,13 @@ function _initRptDeptDD(emps) {
 function loadDeductData() {
   var df = (document.getElementById('rpt-df')||{}).value || '';
   var dt = (document.getElementById('rpt-dt')||{}).value || '';
+  if (!df) {
+    showToast('⚠️ กรุณาเลือก "วันที่เริ่ม" ก่อนค้นหา', '#dc2626');
+    _deductSearched = false;
+    applyDeductFilter();
+    return;
+  }
+  _deductSearched = true;
   showLoading(true, '⏳ กำลังดึงข้อมูล...');
   gas('getDeductionReport', [df, dt], function(res) {
     _deductData = res.ok ? res.data : [];
@@ -1595,8 +1610,18 @@ function loadDeductData() {
 }
 
 function applyDeductFilter() {
+  var tbody = document.getElementById('rpt-tbody');
+  var totalEl = document.getElementById('rpt-total');
+  if (!_deductSearched) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#888;padding:30px">กรุณาเลือก "วันที่เริ่ม" แล้วกด "ยืนยัน / ค้นหา"</td></tr>';
+    if (totalEl) totalEl.textContent = '— บาท';
+    return;
+  }
+
   var q       = ((document.getElementById('rpt-q')||{}).value||'').toLowerCase();
   var empCode = ((document.getElementById('rpt-emp-val')||{}).value||'');
+  var cat     = ((document.getElementById('rpt-cat')||{}).value||'');
+  var dept    = ((document.getElementById('rpt-dept')||{}).value||'');
 
   var filtered = _deductData.filter(function(r) {
     var matchQ   = !q || (r.empName||'').toLowerCase().includes(q)
@@ -1604,8 +1629,10 @@ function applyDeductFilter() {
                       || (r.department||'').toLowerCase().includes(q)
                       || (r.itemName||'').toLowerCase().includes(q)
                       || (r.itemCode||'').toLowerCase().includes(q);
-    var matchEmp = !empCode || r.empCode === empCode;
-    return matchQ && matchEmp;
+    var matchEmp  = !empCode || r.empCode === empCode;
+    var matchCat  = !cat || r.stockType === cat;
+    var matchDept = !dept || r.department === dept;
+    return matchQ && matchEmp && matchCat && matchDept;
   });
 
   var STOCK_LABEL = { office:'Office', machine:'Machine', uniform:'Uniform', medicine:'Medicine' };
@@ -1614,6 +1641,9 @@ function applyDeductFilter() {
     total += r.totalAmount;
     return '<tr style="background:' + (idx%2===0?'#fafafa':'#fff') + '">' +
       '<td style="white-space:nowrap">' + toDisplayDate(r.date) + '</td>' +
+      '<td>' + (r.department||'-') + '</td>' +
+      '<td style="text-align:center">' + (r.empCode||'-') + '</td>' +
+      '<td>' + (r.empName||'-') + '</td>' +
       '<td style="text-align:center"><span class="badge badge-ok">' + (STOCK_LABEL[r.stockType]||r.stockType) + '</span></td>' +
       '<td style="text-align:center;font-size:12px">' + (r.itemCode||'-') + '</td>' +
       '<td>' + (r.itemName||'-') + '</td>' +
@@ -1625,48 +1655,45 @@ function applyDeductFilter() {
     '</tr>';
   }).join('');
 
-  var tbody = document.getElementById('rpt-tbody');
-  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:#888;padding:20px">ไม่พบข้อมูล</td></tr>';
-
-  var totalEl = document.getElementById('rpt-total');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="12" style="text-align:center;color:#888;padding:20px">ไม่พบข้อมูล</td></tr>';
   if (totalEl) totalEl.textContent = total.toLocaleString('th-TH',{minimumFractionDigits:2}) + ' บาท';
 }
 
 function resetDeductFilter() {
-  ['rpt-q','rpt-df','rpt-dt','rpt-emp-val','rpt-emp-code','rpt-emp-dept'].forEach(function(id){
+  ['rpt-q','rpt-df','rpt-dt','rpt-emp-val','rpt-emp-code','rpt-emp-dept','rpt-cat','rpt-dept'].forEach(function(id){
     var el = document.getElementById(id); if(el) el.value='';
   });
   var s = document.getElementById('rpt-emp-search'); if(s) s.value='';
   _deductData = [];
-  var tbody = document.getElementById('rpt-tbody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:20px">กรอกเงื่อนไขแล้วกด "ยืนยัน / ค้นหา"</td></tr>';
-  var totalEl = document.getElementById('rpt-total'); if(totalEl) totalEl.textContent = '— บาท';
+  _deductSearched = false;
+  applyDeductFilter();
 }
 
 function exportDeductExcel() {
-  // Simple CSV export (ไม่ต้องใช้ library)
-  var df = (document.getElementById('rpt-df')||{}).value||'';
-  var dt = (document.getElementById('rpt-dt')||{}).value||'';
-  var dept = (document.getElementById('rpt-dept')||{}).value||'';
-  var stock = (document.getElementById('rpt-stock')||{}).value||'';
-  var empCode = (document.getElementById('rpt-emp-val')||{}).value||'';
+  if (!_deductSearched) { showToast('⚠️ กรุณาค้นหาข้อมูลก่อน Export', '#dc2626'); return; }
+  var q       = ((document.getElementById('rpt-q')||{}).value||'').toLowerCase();
+  var empCode = ((document.getElementById('rpt-emp-val')||{}).value||'');
+  var cat     = ((document.getElementById('rpt-cat')||{}).value||'');
+  var dept    = ((document.getElementById('rpt-dept')||{}).value||'');
 
   var filtered = _deductData.filter(function(r) {
-    return (!((document.getElementById('rpt-q')||{}).value) || true) // ใช้ filtered ล่าสุดจาก applyDeductFilter แทน
-      && (!empCode || r.empCode === empCode)
-      && (!dept || r.department === dept)
-      && (!stock || r.stockType === stock);
+    var matchQ   = !q || (r.empName||'').toLowerCase().includes(q) || (r.empCode||'').toLowerCase().includes(q)
+                      || (r.department||'').toLowerCase().includes(q) || (r.itemName||'').toLowerCase().includes(q)
+                      || (r.itemCode||'').toLowerCase().includes(q);
+    return matchQ && (!empCode || r.empCode === empCode) && (!cat || r.stockType === cat) && (!dept || r.department === dept);
   });
 
   var BOM = '\uFEFF';
-  var header = 'วันที่,แผนก,รหัสพนักงาน,ชื่อพนักงาน,รหัสสินค้า,รายการ,Part No.,ราคา/หน่วย,จำนวน,ยอดรวม,หมายเหตุ\n';
+  var header = 'วันที่,แผนก,รหัสพนักงาน,ชื่อพนักงาน,หมวดหมู่,รหัสสินค้า,รายการ,Part No.,ราคา/หน่วย,จำนวน,ยอดรวม,หมายเหตุ\n';
   var rows = filtered.map(function(r) {
-    return [toDisplayDate(r.date), r.department, r.empCode, r.empName, r.itemCode, r.itemName, r.partNo, r.pricePerUnit, r.qty, r.totalAmount, r.note].map(function(v){ return '"' + (v||'').toString().replace(/"/g,'""') + '"'; }).join(',');
+    return [toDisplayDate(r.date), r.department, r.empCode, r.empName, r.stockType, r.itemCode, r.itemName, r.partNo, r.pricePerUnit, r.qty, r.totalAmount, r.note]
+      .map(function(v){ return '"' + (v||'').toString().replace(/"/g,'""') + '"'; }).join(',');
   }).join('\n');
 
   var blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
+  var df = (document.getElementById('rpt-df')||{}).value||'', dt = (document.getElementById('rpt-dt')||{}).value||'';
   a.href = url; a.download = 'deduction_report_' + (df||'all') + '_' + (dt||'all') + '.csv';
   a.click(); URL.revokeObjectURL(url);
 }
