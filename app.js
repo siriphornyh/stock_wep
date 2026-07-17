@@ -1563,6 +1563,10 @@ function renderDeductionReport() {
   });
 }
 
+function _initRptEmpSearch(emps) {
+  window._rptEmps = emps;
+}
+
 function filterRptEmpDD() {
   var q = (document.getElementById('rpt-emp-search').value || '').toLowerCase();
   var emps = window._rptEmps || [];
