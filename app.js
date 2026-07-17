@@ -1720,7 +1720,7 @@ function renderSummaryDashboard() {
         '<div><label>วันที่สิ้นสุด</label><input type="date" id="db-dt"></div>' +
         '<div style="min-width:220px"><label>ประเภทกราฟ</label>' +
           '<select id="db-type" onchange="renderDashChart()">' +
-            '<option value="1">1 — อัตราการเบิกจ่ายอะไหล่</option>' +
+            '<option value="1">1 — อัตราการเบิกจ่ายสินค้า</option>' +
             '<option value="2">2 — การเบิกอะไหล่ตามเครื่องจักร</option>' +
             '<option value="3">3 — รวมอัตราค่าใช้จ่าย</option>' +
             '<option value="4">4 — ค่าใช้จ่ายรายปี (ทุกปี)</option>' +

@@ -544,6 +544,8 @@ var SUPA_API = (function () {
         row.symptom = record.symptom || ""; row.note = record.note || "";
       } else if (st === "uniform") {
         row.issue_type = record.issueType || "new"; row.note = record.note || "";
+      } else if (st === "office") {
+        row.issue_type = record.issueType || "use"; row.note = record.note || "";
       } else {
         row.note = record.note || "";
       }
@@ -576,6 +578,8 @@ var SUPA_API = (function () {
         } else if (st === "medicine") {
           base.symptom = r.symptom || ""; base.note = r.note || ""; base.priceSnapshot = Number(r.price_snapshot) || 0;
         } else if (st === "uniform") {
+          base.issueType = r.issue_type || ""; base.note = r.note || ""; base.priceSnapshot = Number(r.price_snapshot) || 0;
+        } else if (st === "office") {
           base.issueType = r.issue_type || ""; base.note = r.note || ""; base.priceSnapshot = Number(r.price_snapshot) || 0;
         } else {
           base.note = r.note || ""; base.priceSnapshot = Number(r.price_snapshot) || 0;
