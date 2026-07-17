@@ -1836,10 +1836,15 @@ function _renderChart2(d) {
 
 // ---- ประเภท 3: รวมค่าใช้จ่าย ----
 function _renderChart3(d) {
-  var EMP_TYPES = ['self','new']; // พนักงานจ่าย
+  var EMP_TYPES = ['self','new'];
   var companyCost = 0, empByDept = {}, totalEmp = 0;
 
-  d.issueRows.forEach(function(r) {
+  // ★ เพิ่ม: กรองเฉพาะหมวด Machine
+  var mIssue = d.issueRows.filter(function(r){ return r._stockType === 'machine'; });
+  var mReceive = d.receiveRows.filter(function(r){ return r._stockType === 'machine'; });
+  var mProducts = d.products.filter(function(p){ return p.stock_type === 'machine'; });
+
+  mIssue.forEach(function(r) {              // เดิม: d.issueRows.forEach
     var amt = Number(r.total_amount) || (Number(r.price_snapshot)||0)*(Number(r.qty)||0);
     var isEmp = EMP_TYPES.indexOf(r.issue_type) !== -1;
     if (isEmp) {
@@ -1851,19 +1856,19 @@ function _renderChart3(d) {
     }
   });
 
-  // ต้นทุนสินค้าคงเหลือ
   var receiveMap = {}, issueMap = {}, latestPrice = {};
-  d.receiveRows.forEach(function(r){
+  mReceive.forEach(function(r){              // เดิม: d.receiveRows.forEach
     receiveMap[r.item_code] = (receiveMap[r.item_code]||0) + (Number(r.qty)||0);
     if (Number(r.price) > 0 && !latestPrice[r.item_code]) latestPrice[r.item_code] = Number(r.price);
   });
-  d.issueRows.forEach(function(r){ issueMap[r.item_code] = (issueMap[r.item_code]||0) + (Number(r.qty)||0); });
+  mIssue.forEach(function(r){ issueMap[r.item_code] = (issueMap[r.item_code]||0) + (Number(r.qty)||0); }); // เดิม: d.issueRows.forEach
   var inventoryCost = 0;
-  d.products.forEach(function(p){
+  mProducts.forEach(function(p){             // เดิม: d.products.forEach
     var balance = (receiveMap[p.item_code]||0) - (issueMap[p.item_code]||0);
     var price = latestPrice[p.item_code] || Number(p.price) || 0;
     if (balance > 0) inventoryCost += balance * price;
   });
+  // ... โค้ดส่วนที่เหลือทั้งหมดหลังจากนี้ไม่ต้องแก้ ...
 
   var depts = Object.keys(empByDept).sort(function(a,b){ return empByDept[b]-empByDept[a]; });
   var grandTotal = companyCost + totalEmp;

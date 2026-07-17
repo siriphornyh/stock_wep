@@ -775,8 +775,9 @@ var SUPA_API = (function () {
       var [prodRes, ...issueResults] = await Promise.all([
         sb.from('master_products').select('item_code,stock_type,price,unit,item_name'),
         ...TYPES.map(function(st) {
-          var q = sb.from(st+'_issue')
-            .select('date,item_code,item_name,qty,price_snapshot,total_amount,issue_type,department,machine_code');
+          var cols = 'date,item_code,item_name,qty,price_snapshot,total_amount,issue_type,department'
+            + (st === 'machine' ? ',machine_code' : '');
+          var q = sb.from(st+'_issue').select(cols);
           if (dateFrom) q = q.gte('date', dateFrom);
           if (dateTo)   q = q.lte('date', dateTo);
           return q;
