@@ -761,6 +761,41 @@ var SUPA_API = (function () {
     } catch(e) { return 0; }
   }
 
+  async function getDashboardReport(dateFrom, dateTo) {
+    try {
+      var TYPES = ['office','machine','uniform','medicine'];
+      var issueRows = [], receiveRows = [], products = [];
+
+      // ดึงข้อมูลขนานกัน
+      var [prodRes, ...issueResults] = await Promise.all([
+        sb.from('master_products').select('item_code,stock_type,price,unit,item_name'),
+        ...TYPES.map(function(st) {
+          var q = sb.from(st+'_issue')
+            .select('date,item_code,item_name,qty,price_snapshot,total_amount,issue_type,department,machine_code');
+          if (dateFrom) q = q.gte('date', dateFrom);
+          if (dateTo)   q = q.lte('date', dateTo);
+          return q;
+        })
+      ]);
+      if (!prodRes.error) products = prodRes.data || [];
+
+      var receiveResults = await Promise.all(
+        TYPES.map(function(st) {
+          return sb.from(st+'_receive').select('item_code,qty,price,date').order('date',{ascending:false});
+        })
+      );
+
+      TYPES.forEach(function(st, i) {
+        (issueResults[i].data || []).forEach(function(r) { r._stockType = st; issueRows.push(r); });
+        (receiveResults[i].data || []).forEach(function(r) { r._stockType = st; receiveRows.push(r); });
+      });
+
+      return { ok: true, issueRows: issueRows, receiveRows: receiveRows, products: products };
+    } catch(e) {
+      return { ok: false, issueRows: [], receiveRows: [], products: [], message: e.message };
+    }
+  }
+
   return {
     getDropdownOptions: getDropdownOptions,
     login: login,
@@ -790,5 +825,6 @@ var SUPA_API = (function () {
     getAdminLogs: getAdminLogs,
     getDeductionReport: getDeductionReport,
     getHistoricalPrice: getHistoricalPrice,
+    getDashboardReport: getDashboardReport,
   };
 })();

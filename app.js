@@ -202,7 +202,7 @@ function switchTab(sys, tab) {
   var btn = document.getElementById('tab-btn-' + tab);
   if (btn) btn.classList.add('active');
   document.getElementById('app-time').textContent = 'อัปเดต: ' + formatDateTH(new Date());
-  var fn = { dashboard: renderDashboard, items: renderItems, receive: renderReceive, issue: renderIssue, balance: renderBalance, deduction: renderDeductionReport };
+  var fn = { dashboard: renderDashboard, items: renderItems, receive: renderReceive, issue: renderIssue, balance: renderBalance, deduction: renderDeductionReport, summary: renderSummaryDashboard };
   if (fn[tab]) fn[tab](sys);
 }
 
@@ -1700,4 +1700,235 @@ function exportDeductExcel() {
   var df = (document.getElementById('rpt-df')||{}).value||'', dt = (document.getElementById('rpt-dt')||{}).value||'';
   a.href = url; a.download = 'deduction_report_' + (df||'all') + '_' + (dt||'all') + '.csv';
   a.click(); URL.revokeObjectURL(url);
+}
+
+// ============================================================
+//  REPORTS — Dashboard กราฟ
+// ============================================================
+var _dashCharts = {}; // เก็บ Chart instances เพื่อ destroy ก่อน re-render
+
+function _destroyCharts() {
+  Object.keys(_dashCharts).forEach(function(k) { if(_dashCharts[k]) { _dashCharts[k].destroy(); delete _dashCharts[k]; } });
+}
+
+function renderSummaryDashboard() {
+  var col = '#b45309';
+  document.getElementById('app-content').innerHTML =
+    '<div class="card">' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">' +
+        '<div><label>วันที่เริ่ม</label><input type="date" id="db-df"></div>' +
+        '<div><label>วันที่สิ้นสุด</label><input type="date" id="db-dt"></div>' +
+        '<div style="min-width:220px"><label>ประเภทกราฟ</label>' +
+          '<select id="db-type" onchange="renderDashChart()">' +
+            '<option value="1">1 — อัตราการเบิกจ่ายอะไหล่</option>' +
+            '<option value="2">2 — การเบิกอะไหล่ตามเครื่องจักร</option>' +
+            '<option value="3">3 — รวมอัตราค่าใช้จ่าย</option>' +
+            '<option value="4">4 — ค่าใช้จ่ายรายปี (ทุกปี)</option>' +
+          '</select></div>' +
+        '<button class="btn btn-blue btn-sm" style="align-self:flex-end" onclick="loadDashData()">🔍 โหลดข้อมูล</button>' +
+      '</div>' +
+    '</div>' +
+    '<div id="db-content"><div style="text-align:center;padding:40px;color:#888">เลือกช่วงวันที่แล้วกด "โหลดข้อมูล"</div></div>';
+}
+
+var _dashData = null;
+
+function loadDashData() {
+  var df = (document.getElementById('db-df')||{}).value||'';
+  var dt = (document.getElementById('db-dt')||{}).value||'';
+  var type = (document.getElementById('db-type')||{}).value||'1';
+  // ประเภท 4 ไม่ใช้ filter วันที่
+  if (type === '4') { df = ''; dt = ''; }
+  showLoading(true, '⏳ กำลังดึงข้อมูล...');
+  gas('getDashboardReport', [df, dt], function(res) {
+    if (!res.ok) { showToast('❌ ' + (res.message||'ดึงข้อมูลไม่ได้'), '#dc2626'); return; }
+    _dashData = res;
+    renderDashChart();
+  });
+}
+
+function renderDashChart() {
+  if (!_dashData) return;
+  var type = (document.getElementById('db-type')||{}).value||'1';
+  _destroyCharts();
+  if (type === '1') _renderChart1(_dashData);
+  else if (type === '2') _renderChart2(_dashData);
+  else if (type === '3') _renderChart3(_dashData);
+  else if (type === '4') _renderChart4(_dashData);
+}
+
+// ---- ประเภท 1: อัตราการเบิกจ่ายอะไหล่ ----
+function _renderChart1(d) {
+  var TYPES = ['office','machine','uniform','medicine'];
+  var LABELS = {office:'Office',machine:'Machine',uniform:'Uniform',medicine:'Medicine'};
+  var COLORS = ['#0070c0','#ea580c','#7c3aed','#16a34a'];
+
+  var qtyByType = {office:0,machine:0,uniform:0,medicine:0};
+  d.issueRows.forEach(function(r){ qtyByType[r._stockType] = (qtyByType[r._stockType]||0) + (Number(r.qty)||0); });
+  var totalQty = TYPES.reduce(function(s,t){ return s + qtyByType[t]; }, 0);
+
+  // grouping per-type top items
+  var itemsByType = {};
+  TYPES.forEach(function(st){ itemsByType[st] = {}; });
+  d.issueRows.forEach(function(r){
+    var m = itemsByType[r._stockType];
+    if(!m[r.item_code]) m[r.item_code] = { name: r.item_name||r.item_code, qty: 0 };
+    m[r.item_code].qty += Number(r.qty)||0;
+  });
+
+  var html = '<div class="card"><div class="card-title" style="color:#b45309">📊 สัดส่วนการเบิกจ่ายตามหมวด</div>' +
+    '<div style="max-width:360px;margin:0 auto"><canvas id="ch-pie"></canvas></div></div>' +
+    '<div class="grid2">';
+  TYPES.forEach(function(st, i) {
+    var items = Object.values(itemsByType[st]).sort(function(a,b){ return b.qty-a.qty; }).slice(0,10);
+    html += '<div class="card"><div class="card-title" style="color:' + COLORS[i] + '">' + LABELS[st] + '</div>' +
+      '<canvas id="ch-bar-' + st + '" height="200"></canvas>' +
+      '<div style="font-size:12px;color:#555;margin-top:10px">รวมเบิก: <b>' + qtyByType[st].toLocaleString() + '</b> หน่วย' +
+      (totalQty > 0 ? ' (' + (qtyByType[st]/totalQty*100).toFixed(1) + '%)' : '') + '</div></div>';
+  });
+  html += '</div>';
+  document.getElementById('db-content').innerHTML = html;
+
+  // Pie
+  _dashCharts['pie'] = new Chart(document.getElementById('ch-pie'), {
+    type: 'pie',
+    data: { labels: TYPES.map(function(t){ return LABELS[t]; }), datasets: [{ data: TYPES.map(function(t){ return qtyByType[t]; }), backgroundColor: COLORS }] },
+    options: { plugins: { legend: { position:'bottom' } } }
+  });
+
+  // Bar per type
+  TYPES.forEach(function(st, i) {
+    var items = Object.values(itemsByType[st]).sort(function(a,b){ return b.qty-a.qty; }).slice(0,10);
+    var el = document.getElementById('ch-bar-' + st);
+    if (!el || !items.length) return;
+    _dashCharts['bar-'+st] = new Chart(el, {
+      type: 'bar',
+      data: { labels: items.map(function(x){ return x.name.length>12?x.name.slice(0,12)+'…':x.name; }), datasets: [{ label: 'จำนวนเบิก', data: items.map(function(x){ return x.qty; }), backgroundColor: COLORS[i]+'cc' }] },
+      options: { plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } } }
+    });
+  });
+}
+
+// ---- ประเภท 2: เครื่องจักร ----
+function _renderChart2(d) {
+  var machMap = {};
+  d.issueRows.filter(function(r){ return r._stockType==='machine' && r.machine_code; }).forEach(function(r){
+    machMap[r.machine_code] = (machMap[r.machine_code]||0) + (Number(r.qty)||0);
+  });
+  var sorted = Object.entries(machMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,15);
+
+  document.getElementById('db-content').innerHTML =
+    '<div class="card"><div class="card-title" style="color:#ea580c">⚙️ เครื่องจักรที่เบิกอะไหล่มากที่สุด</div>' +
+    '<canvas id="ch-mach" height="120"></canvas>' +
+    '<div id="db-mach-summary" style="margin-top:14px;font-size:13px"></div></div>';
+
+  if (!sorted.length) { document.getElementById('db-content').innerHTML += '<div style="color:#888;text-align:center">ไม่มีข้อมูล</div>'; return; }
+
+  _dashCharts['mach'] = new Chart(document.getElementById('ch-mach'), {
+    type: 'bar',
+    data: { labels: sorted.map(function(x){ return x[0]; }), datasets: [{ label: 'จำนวนชิ้น', data: sorted.map(function(x){ return x[1]; }), backgroundColor: '#ea580ccc' }] },
+    options: { plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } } }
+  });
+
+  var rows = sorted.map(function(x,i){ return '<tr><td>'+(i+1)+'</td><td>'+x[0]+'</td><td style="text-align:right">'+x[1].toLocaleString()+'</td></tr>'; }).join('');
+  document.getElementById('db-mach-summary').innerHTML = '<table><thead><tr style="background:#ea580c;color:#fff"><th>#</th><th>รหัสเครื่องจักร</th><th>จำนวนเบิก (ชิ้น)</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+// ---- ประเภท 3: รวมค่าใช้จ่าย ----
+function _renderChart3(d) {
+  var EMP_TYPES = ['self','new']; // พนักงานจ่าย
+  var companyCost = 0, empByDept = {}, totalEmp = 0;
+
+  d.issueRows.forEach(function(r) {
+    var amt = Number(r.total_amount) || (Number(r.price_snapshot)||0)*(Number(r.qty)||0);
+    var isEmp = EMP_TYPES.indexOf(r.issue_type) !== -1;
+    if (isEmp) {
+      var dept = r.department || 'ไม่ระบุแผนก';
+      empByDept[dept] = (empByDept[dept]||0) + amt;
+      totalEmp += amt;
+    } else {
+      companyCost += amt;
+    }
+  });
+
+  // ต้นทุนสินค้าคงเหลือ
+  var receiveMap = {}, issueMap = {}, latestPrice = {};
+  d.receiveRows.forEach(function(r){
+    receiveMap[r.item_code] = (receiveMap[r.item_code]||0) + (Number(r.qty)||0);
+    if (Number(r.price) > 0 && !latestPrice[r.item_code]) latestPrice[r.item_code] = Number(r.price);
+  });
+  d.issueRows.forEach(function(r){ issueMap[r.item_code] = (issueMap[r.item_code]||0) + (Number(r.qty)||0); });
+  var inventoryCost = 0;
+  d.products.forEach(function(p){
+    var balance = (receiveMap[p.item_code]||0) - (issueMap[p.item_code]||0);
+    var price = latestPrice[p.item_code] || Number(p.price) || 0;
+    if (balance > 0) inventoryCost += balance * price;
+  });
+
+  var depts = Object.keys(empByDept).sort(function(a,b){ return empByDept[b]-empByDept[a]; });
+  var grandTotal = companyCost + totalEmp;
+
+  var barLabels = ['ค่าใช้จ่ายบริษัท'].concat(depts);
+  var barData = [companyCost].concat(depts.map(function(d){ return empByDept[d]; }));
+  var barColors = ['#0070c0'].concat(depts.map(function(_,i){ return ['#ea580c','#7c3aed','#16a34a','#dc2626','#d97706'][i%5]; }));
+
+  document.getElementById('db-content').innerHTML =
+    '<div class="card"><div class="card-title" style="color:#0070c0">💰 รวมอัตราค่าใช้จ่าย</div>' +
+    '<canvas id="ch-cost" height="100"></canvas>' +
+    '<div id="db-cost-summary" style="margin-top:14px;font-size:13px"></div></div>';
+
+  _dashCharts['cost'] = new Chart(document.getElementById('ch-cost'), {
+    type: 'bar',
+    data: { labels: barLabels, datasets: [{ label: 'ยอด (บาท)', data: barData, backgroundColor: barColors }] },
+    options: { plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } } }
+  });
+
+  var deptRows = depts.map(function(dept){
+    var pct = grandTotal > 0 ? (empByDept[dept]/grandTotal*100).toFixed(1) : '0.0';
+    return '<tr><td>'+dept+'</td><td style="text-align:right">'+empByDept[dept].toLocaleString('th-TH',{minimumFractionDigits:2})+'</td><td style="text-align:center">'+pct+'%</td></tr>';
+  }).join('');
+
+  document.getElementById('db-cost-summary').innerHTML =
+    '<table><thead><tr style="background:#1e293b;color:#fff"><th>รายการ</th><th>ยอด (บาท)</th><th>%</th></tr></thead><tbody>' +
+    '<tr style="background:#dbeafe"><td><b>ค่าใช้จ่ายบริษัท</b></td><td style="text-align:right"><b>'+companyCost.toLocaleString('th-TH',{minimumFractionDigits:2})+'</b></td><td style="text-align:center">'+(grandTotal>0?(companyCost/grandTotal*100).toFixed(1):'0.0')+'%</td></tr>' +
+    deptRows +
+    '<tr style="background:#fef9c3"><td><b>รวมค่าใช้จ่ายพนักงาน</b></td><td style="text-align:right"><b>'+totalEmp.toLocaleString('th-TH',{minimumFractionDigits:2})+'</b></td><td style="text-align:center">'+(grandTotal>0?(totalEmp/grandTotal*100).toFixed(1):'0.0')+'%</td></tr>' +
+    '<tr style="background:#f0fdf4"><td><b>ต้นทุนสินค้าคงเหลือ</b></td><td style="text-align:right"><b>'+inventoryCost.toLocaleString('th-TH',{minimumFractionDigits:2})+'</b></td><td>—</td></tr>' +
+    '<tr style="background:#1e293b;color:#fff"><td><b>ยอดรวมทั้งหมด</b></td><td style="text-align:right"><b>'+(grandTotal+inventoryCost).toLocaleString('th-TH',{minimumFractionDigits:2})+'</b></td><td>—</td></tr>' +
+    '</tbody></table>';
+}
+
+// ---- ประเภท 4: รายปี (ไม่ filter วันที่) ----
+function _renderChart4(d) {
+  var yearMap = {};
+  d.issueRows.forEach(function(r){
+    var yr = (r.date||'').slice(0,4);
+    if (!yr) return;
+    var amt = Number(r.total_amount) || (Number(r.price_snapshot)||0)*(Number(r.qty)||0);
+    yearMap[yr] = (yearMap[yr]||0) + amt;
+  });
+  var years = Object.keys(yearMap).sort();
+  var vals = years.map(function(y){ return yearMap[y]; });
+  var grandTotal = vals.reduce(function(s,v){ return s+v; }, 0);
+
+  document.getElementById('db-content').innerHTML =
+    '<div class="card"><div class="card-title" style="color:#b45309">📈 ค่าใช้จ่ายรายปี</div>' +
+    '<canvas id="ch-year" height="100"></canvas>' +
+    '<div id="db-year-summary" style="margin-top:14px;font-size:13px"></div></div>';
+
+  if (!years.length) { document.getElementById('db-content').querySelector('#db-year-summary').textContent = 'ไม่มีข้อมูล'; return; }
+
+  _dashCharts['year'] = new Chart(document.getElementById('ch-year'), {
+    type: 'line',
+    data: { labels: years, datasets: [{ label: 'ยอด (บาท)', data: vals, borderColor:'#b45309', backgroundColor:'#b4530922', tension:0.3, fill:true }] },
+    options: { scales:{ y:{ beginAtZero:true } } }
+  });
+
+  var rows = years.map(function(yr){
+    var pct = grandTotal > 0 ? (yearMap[yr]/grandTotal*100).toFixed(1) : '0.0';
+    return '<tr><td>'+yr+'</td><td style="text-align:right">'+yearMap[yr].toLocaleString('th-TH',{minimumFractionDigits:2})+'</td><td style="text-align:center">'+pct+'%</td></tr>';
+  }).join('');
+  document.getElementById('db-year-summary').innerHTML =
+    '<table><thead><tr style="background:#b45309;color:#fff"><th>ปี</th><th>ยอด (บาท)</th><th>% ของรวม</th></tr></thead><tbody>'+rows+
+    '<tr style="background:#fef9c3"><td><b>รวม</b></td><td style="text-align:right"><b>'+grandTotal.toLocaleString('th-TH',{minimumFractionDigits:2})+'</b></td><td>100%</td></tr></tbody></table>';
 }
