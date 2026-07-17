@@ -704,7 +704,8 @@ var SUPA_API = (function () {
       for (var i = 0; i < STOCK_TYPES.length; i++) {
         var st = STOCK_TYPES[i];
         var q = sb.from(st + '_issue')
-        .select('id,date,emp_code,emp_name,department,item_code,item_name,qty,price_snapshot,total_amount,issue_type,note');
+          .select('id,date,emp_code,emp_name,department,item_code,item_name,qty,price_snapshot,total_amount,issue_type,note')
+          .in('issue_type', ['self', 'new']);
         if (dateFrom) q = q.gte('date', dateFrom);
         if (dateTo)   q = q.lte('date', dateTo);
         var res = throwIfError(await q.order('date'));
