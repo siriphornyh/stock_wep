@@ -773,7 +773,7 @@ var SUPA_API = (function () {
 
       // ดึงข้อมูลขนานกัน
       var [prodRes, ...issueResults] = await Promise.all([
-        sb.from('master_products').select('item_code,stock_type,price,unit,item_name'),
+        sb.from('master_products').select('item_code,stock_type,price,unit,item_name,category,extra1,extra2'),
         ...TYPES.map(function(st) {
           var cols = 'date,item_code,item_name,qty,price_snapshot,total_amount,issue_type,department'
             + (st === 'machine' ? ',machine_code' : '');

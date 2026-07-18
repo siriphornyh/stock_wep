@@ -1769,10 +1769,12 @@ function _renderChart1(d) {
 
   // grouping per-type top items
   var itemsByType = {};
+  var productMap = {};
+  d.products.forEach(function(p){ productMap[p.item_code] = p; });
   TYPES.forEach(function(st){ itemsByType[st] = {}; });
   d.issueRows.forEach(function(r){
     var m = itemsByType[r._stockType];
-    if(!m[r.item_code]) m[r.item_code] = { name: r.item_name||r.item_code, qty: 0 };
+    if(!m[r.item_code]) m[r.item_code] = { name: r.item_name||r.item_code, code: r.item_code, qty: 0 };
     m[r.item_code].qty += Number(r.qty)||0;
   });
 
@@ -1812,8 +1814,16 @@ function _renderChart1(d) {
           legend: { display:false },
           tooltip: {
             callbacks: {
-              title: function(ctx) { return items[ctx[0].dataIndex].name; },              // ชื่อเต็ม
-              label: function(ctx) { return 'จำนวนเบิก: ' + items[ctx.dataIndex].qty.toLocaleString() + ' หน่วย'; }
+              title: function(ctx) { return items[ctx[0].dataIndex].name; },
+              label: function(ctx) { return 'จำนวนเบิก: ' + items[ctx.dataIndex].qty.toLocaleString() + ' หน่วย'; },
+              afterLabel: function(ctx) {
+                var it = items[ctx.dataIndex];
+                var p = productMap[it.code] || {};
+                var lines = ['รหัส: ' + it.code, 'หมวดหมู่: ' + (p.category || '-')];
+                if (st === 'machine') lines.push('Part No.: ' + (p.extra1 || '-'));
+                if (st === 'uniform') lines.push('ไซส์: ' + (p.extra2 || '-'));
+                return lines;
+              }
             }
           }
         },
