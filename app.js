@@ -1814,16 +1814,17 @@ function _renderChart1(d) {
           legend: { display:false },
           tooltip: {
             callbacks: {
-              title: function(ctx) { return items[ctx[0].dataIndex].name; },
-              label: function(ctx) { return 'จำนวนเบิก: ' + items[ctx.dataIndex].qty.toLocaleString() + ' หน่วย'; },
-              afterLabel: function(ctx) {
-                var it = items[ctx.dataIndex];
+              title: function(ctx) { return items[ctx[0].dataIndex].name; },              // ชื่ออะไหล่
+              beforeBody: function(ctx) {
+                var it = items[ctx[0].dataIndex];
                 var p = productMap[it.code] || {};
-                var lines = ['รหัส: ' + it.code, 'หมวดหมู่: ' + (p.category || '-')];
-                if (st === 'machine') lines.push('Part No.: ' + (p.extra1 || '-'));
-                if (st === 'uniform') lines.push('ไซส์: ' + (p.extra2 || '-'));
+                var lines = ['รหัสสินค้า: ' + it.code];                                    // item_code
+                if (st === 'machine') lines.push('Part No.: ' + (p.extra1 || '-'));        // เฉพาะ machine
+                if (st === 'uniform') lines.push('ไซส์: ' + (p.extra2 || '-'));            // เฉพาะ uniform
+                lines.push('หมวดหมู่: ' + (p.category || '-'));                           // category
                 return lines;
-              }
+              },
+              label: function(ctx) { return 'จำนวนเบิก: ' + items[ctx.dataIndex].qty.toLocaleString() + ' หน่วย'; } // (สี) จำนวนเบิก
             }
           }
         },
