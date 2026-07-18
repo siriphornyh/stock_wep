@@ -1722,7 +1722,7 @@ function renderSummaryDashboard() {
           '<select id="db-type" onchange="renderDashChart()">' +
             '<option value="1">1 — อัตราการเบิกจ่ายสินค้า</option>' +
             '<option value="2">2 — การเบิกอะไหล่ตามเครื่องจักร</option>' +
-            '<option value="3">3 — รวมอัตราค่าใช้จ่าย</option>' +
+            '<option value="3">3 — รวมอัตราค่าใช้จ่ายอะไหล่</option>' +
             '<option value="4">4 — ค่าใช้จ่ายรายปี (ทุกปี)</option>' +
           '</select></div>' +
         '<button class="btn btn-blue btn-sm" style="align-self:flex-end" onclick="loadDashData()">🔍 โหลดข้อมูล</button>' +
@@ -1803,8 +1803,22 @@ function _renderChart1(d) {
     if (!el || !items.length) return;
     _dashCharts['bar-'+st] = new Chart(el, {
       type: 'bar',
-      data: { labels: items.map(function(x){ return x.name.length>12?x.name.slice(0,12)+'…':x.name; }), datasets: [{ label: 'จำนวนเบิก', data: items.map(function(x){ return x.qty; }), backgroundColor: COLORS[i]+'cc' }] },
-      options: { plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } } }
+      data: {
+        labels: items.map(function(x){ return x.name.length>12?x.name.slice(0,12)+'…':x.name; }),
+        datasets: [{ label: 'จำนวนเบิก', data: items.map(function(x){ return x.qty; }), backgroundColor: COLORS[i]+'cc' }]
+      },
+      options: {
+        plugins: {
+          legend: { display:false },
+          tooltip: {
+            callbacks: {
+              title: function(ctx) { return items[ctx[0].dataIndex].name; },              // ชื่อเต็ม
+              label: function(ctx) { return 'จำนวนเบิก: ' + items[ctx.dataIndex].qty.toLocaleString() + ' หน่วย'; }
+            }
+          }
+        },
+        scales:{ y:{ beginAtZero:true } }
+      }
     });
   });
 }
@@ -1842,7 +1856,7 @@ function _renderChart3(d) {
   // ★ เพิ่ม: กรองเฉพาะหมวด Machine
   var mIssue = d.issueRows.filter(function(r){ return r._stockType === 'machine'; });
   var mReceive = d.receiveRows.filter(function(r){ return r._stockType === 'machine'; });
-  var mProducts = d.products.filter(function(p){ return p.stock_type === 'machine'; });
+  var mProducts = d.products.filter(function(p){ return (p.stock_type||'').toUpperCase() === 'MACHINE'; });
 
   mIssue.forEach(function(r) {              // เดิม: d.issueRows.forEach
     var amt = Number(r.total_amount) || (Number(r.price_snapshot)||0)*(Number(r.qty)||0);
