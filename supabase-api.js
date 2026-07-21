@@ -784,6 +784,7 @@ var SUPA_API = (function () {
         })
       ]);
       if (!prodRes.error) products = prodRes.data || [];
+      else console.error('❌ prodRes error:', prodRes.error);
 
       var receiveResults = await Promise.all(
         TYPES.map(function(st) {
