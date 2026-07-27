@@ -145,6 +145,26 @@ var SUPA_API = (function () {
     }
   }
 
+  async function verifySettingsPassword(pw) {
+    try {
+      var res = throwIfError(await sb.from("config").select("settings_password").eq("id", true).single());
+      var stored = (res.data.settings_password || "").toString().trim();
+      if ((pw || "").toString().trim() !== stored) return { ok: false, message: "❌ รหัสผ่าน Settings ไม่ถูกต้อง" };
+      return { ok: true };
+    } catch (e) { return { ok: false, message: "Error: " + e.message }; }
+  }
+
+  async function changeSettingsPassword(oldPw, newPw, adminName) {
+    try {
+      var res = throwIfError(await sb.from("config").select("settings_password").eq("id", true).single());
+      var stored = (res.data.settings_password || "").toString().trim();
+      if ((oldPw || "").toString().trim() !== stored) return { ok: false, message: "❌ รหัสผ่านเดิมไม่ถูกต้อง" };
+      throwIfError(await sb.from("config").update({ settings_password: newPw }).eq("id", true));
+      await writeLog(adminName, "CHANGE_SETTINGS_PASSWORD", "เปลี่ยนรหัสผ่าน Settings");
+      return { ok: true, message: "✅ เปลี่ยนรหัสผ่าน Settings สำเร็จ" };
+    } catch (e) { return { ok: false, message: "Error: " + e.message }; }
+  }
+
   // ============================================================
   //  ADMIN LIST (employee_list)
   // ============================================================
@@ -808,6 +828,8 @@ var SUPA_API = (function () {
     login: login,
     changePassword: changePassword,
     getAdminList: getAdminList,
+    verifySettingsPassword: verifySettingsPassword,
+    changeSettingsPassword: changeSettingsPassword,
     saveAdminList: saveAdminList,
     getEmployees: getEmployees,
     saveEmployee: saveEmployee,

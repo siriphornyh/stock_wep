@@ -1350,8 +1350,22 @@ function toggleVerified() {
 var _settingsTab = 'admin';
 
 function openSettings() {
-  document.getElementById('settings-modal').classList.add('show');
-  switchSettingsTab('admin');
+  document.getElementById('setgate-pw').value = '';
+  document.getElementById('setgate-err').textContent = '';
+  document.getElementById('settings-gate-modal').classList.add('show');
+}
+
+function verifySettingsGate() {
+  var pw = document.getElementById('setgate-pw').value;
+  gas('verifySettingsPassword', [pw], function(res) {
+    if (res.ok) {
+      closeModal('settings-gate-modal');
+      document.getElementById('settings-modal').classList.add('show');
+      switchSettingsTab('admin');
+    } else {
+      document.getElementById('setgate-err').textContent = res.message || '❌ รหัสผ่านไม่ถูกต้อง';
+    }
+  });
 }
 
 function switchSettingsTab(tab) {
@@ -1470,7 +1484,25 @@ function renderSettingsPw() {
     '<div class="grid2"><div><label>รหัสผ่านเดิม</label><input type="password" id="adm-old-pw"></div>' +
     '<div><label>รหัสผ่านใหม่</label><input type="password" id="adm-new-pw"></div>' +
     '<div><label>ยืนยันรหัสผ่านใหม่</label><input type="password" id="adm-new-pw2"></div></div>' +
-    '<button class="btn btn-blue btn-sm" style="margin-top:8px" onclick="changePw()">🔑 เปลี่ยนรหัสผ่าน</button>';
+    '<button class="btn btn-blue btn-sm" style="margin-top:8px" onclick="changePw()">🔑 เปลี่ยนรหัสผ่าน</button>' +
+    '<hr class="section-divider">' +
+    '<div style="font-size:13px;color:#555;margin-bottom:8px">🔒 รหัสผ่านเข้าหน้า Settings (แยกจากรหัสล็อกอิน)</div>' +
+    '<div class="grid2"><div><label>รหัสเดิม</label><input type="password" id="adm-old-setpw"></div>' +
+    '<div><label>รหัสใหม่</label><input type="password" id="adm-new-setpw"></div>' +
+    '<div><label>ยืนยันรหัสใหม่</label><input type="password" id="adm-new-setpw2"></div></div>' +
+    '<button class="btn btn-orange btn-sm" style="margin-top:8px" onclick="changeSettingsPw()">🔑 เปลี่ยนรหัส Settings</button>';
+}
+
+function changeSettingsPw() {
+  var old = document.getElementById('adm-old-setpw').value;
+  var n1  = document.getElementById('adm-new-setpw').value;
+  var n2  = document.getElementById('adm-new-setpw2').value;
+  if (!old || !n1) { alert('กรุณากรอกรหัสผ่านให้ครบ'); return; }
+  if (n1 !== n2) { alert('รหัสผ่านใหม่ไม่ตรงกัน'); return; }
+  gas('changeSettingsPassword', [old, n1, currentAdmin], function(res) {
+    if (res.ok) { showToast('✅ เปลี่ยนรหัสผ่าน Settings สำเร็จ', '#16a34a'); renderSettingsPw(); }
+    else showToast('❌ ' + (res.message || 'เปลี่ยนไม่สำเร็จ'), '#dc2626');
+  });
 }
 
 function changePw() {

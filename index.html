@@ -180,6 +180,18 @@
   </div>
 </div>
 
+<div class="modal-bg" id="settings-gate-modal">
+  <div class="modal" style="max-width:320px">
+    <h3>🔒 ยืนยันรหัสผ่าน Settings</h3>
+    <div class="fr"><label>รหัสผ่าน</label><input type="password" id="setgate-pw" onkeydown="if(event.key==='Enter')verifySettingsGate()"></div>
+    <div class="login-err" id="setgate-err"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn btn-gray" onclick="closeModal('settings-gate-modal')">ยกเลิก</button>
+      <button class="btn btn-blue" onclick="verifySettingsGate()">🔓 ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
 <!-- SOFT-WARNING MODAL -->
 <div id="soft-warn-modal">
   <div class="soft-warn-box">
@@ -201,8 +213,8 @@
 <!-- Supabase JS SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="supabase-config.js"></script>
-<script src="supabase-api.js?v=5"></script>
-<script src="app.js?v=6"></script>
+<script src="supabase-api.js?v=6"></script>
+<script src="app.js?v=7"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </body>
 </html>
